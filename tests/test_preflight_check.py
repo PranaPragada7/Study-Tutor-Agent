@@ -26,6 +26,12 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 import preflight_check as pf  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _clear_offline_mode_env(monkeypatch):
+    """Keep external shell state from changing API-key test expectations."""
+    monkeypatch.delenv("STUDY_TUTOR_OFFLINE_MODE", raising=False)
+
+
 # ---------------------------------------------------------------------------
 # Python-version check
 # ---------------------------------------------------------------------------

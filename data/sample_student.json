@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "Demo Student",
+  "name": "Sample Student",
   "created_at": "2026-04-21T14:00:00+00:00",
   "learning_style": "balanced",
   "courses": {
@@ -58,7 +58,7 @@
   },
   "quiz_history": [
     {
-      "id": "demo001",
+      "id": "sample001",
       "timestamp": "2026-04-22T15:10:00+00:00",
       "course": "Intro to CS",
       "topic": "Variables & Types",
@@ -69,7 +69,7 @@
       "confidence": 4
     },
     {
-      "id": "demo002",
+      "id": "sample002",
       "timestamp": "2026-04-23T16:25:00+00:00",
       "course": "Intro to CS",
       "topic": "Functions",
@@ -80,7 +80,7 @@
       "confidence": 3
     },
     {
-      "id": "demo003",
+      "id": "sample003",
       "timestamp": "2026-04-24T17:40:00+00:00",
       "course": "Intro to CS",
       "topic": "Recursion",
@@ -91,7 +91,7 @@
       "confidence": 4
     },
     {
-      "id": "demo004",
+      "id": "sample004",
       "timestamp": "2026-04-25T18:05:00+00:00",
       "course": "Calculus II",
       "topic": "Integration by Parts",
@@ -102,7 +102,7 @@
       "confidence": 3
     },
     {
-      "id": "demo005",
+      "id": "sample005",
       "timestamp": "2026-04-26T14:35:00+00:00",
       "course": "Calculus II",
       "topic": "Series Convergence",
@@ -113,7 +113,7 @@
       "confidence": 3
     },
     {
-      "id": "demo006",
+      "id": "sample006",
       "timestamp": "2026-04-27T19:10:00+00:00",
       "course": "Intro to CS",
       "topic": "Recursion",
@@ -124,7 +124,7 @@
       "confidence": 5
     },
     {
-      "id": "demo007",
+      "id": "sample007",
       "timestamp": "2026-04-28T20:15:00+00:00",
       "course": "Calculus II",
       "topic": "Taylor Series",
@@ -135,7 +135,7 @@
       "confidence": 2
     },
     {
-      "id": "demo008",
+      "id": "sample008",
       "timestamp": "2026-04-29T16:50:00+00:00",
       "course": "Intro to CS",
       "topic": "Data Structures",
@@ -146,7 +146,7 @@
       "confidence": 4
     },
     {
-      "id": "demo009",
+      "id": "sample009",
       "timestamp": "2026-04-30T18:20:00+00:00",
       "course": "Intro to CS",
       "topic": "Variables & Types",
@@ -157,7 +157,7 @@
       "confidence": 5
     },
     {
-      "id": "demo010",
+      "id": "sample010",
       "timestamp": "2026-05-01T15:45:00+00:00",
       "course": "Calculus II",
       "topic": "Integration by Parts",
@@ -168,7 +168,7 @@
       "confidence": 4
     },
     {
-      "id": "demo011",
+      "id": "sample011",
       "timestamp": "2026-05-02T17:05:00+00:00",
       "course": "Intro to CS",
       "topic": "Functions",
@@ -179,7 +179,7 @@
       "confidence": 4
     },
     {
-      "id": "demo012",
+      "id": "sample012",
       "timestamp": "2026-05-03T19:30:00+00:00",
       "course": "Calculus II",
       "topic": "Series Convergence",
@@ -190,7 +190,7 @@
       "confidence": 3
     },
     {
-      "id": "demo013",
+      "id": "sample013",
       "timestamp": "2026-05-04T14:10:00+00:00",
       "course": "Intro to CS",
       "topic": "Recursion",
@@ -201,7 +201,7 @@
       "confidence": 3
     },
     {
-      "id": "demo014",
+      "id": "sample014",
       "timestamp": "2026-05-04T20:05:00+00:00",
       "course": "Calculus II",
       "topic": "Taylor Series",

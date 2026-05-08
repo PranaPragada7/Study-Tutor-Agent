@@ -1,11 +1,11 @@
 """Smoke-check the student-facing quiz feedback component.
 
 This script avoids the live LLM and patches disk saves in-memory, so it is safe
-to run right before a demo. It verifies that answer evaluation returns the
+to run right before presenting. It verifies that answer evaluation returns the
 structured `student_feedback` payload used by the Streamlit Quiz tab.
 
 Run:
-    python scripts/demo_feedback_check.py
+    python scripts/feedback_check.py
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="study_tutor_feedback_check_") as tmp:
             profile_module.DATA_DIR = tmp
-            profile = create_profile("Feedback Demo", [{"name": "Intro to CS", "difficulty": 3}])
+            profile = create_profile("Feedback Sample Profile", [{"name": "Intro to CS", "difficulty": 3}])
             return _run_feedback_check(profile)
     finally:
         profile_module.DATA_DIR = original_data_dir

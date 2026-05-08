@@ -165,10 +165,10 @@ def _env_bool(name: str, default: bool) -> bool:
 
 QUIZ_VERIFIER_ENABLED: bool = _env_bool("STUDY_TUTOR_QUIZ_VERIFIER_ENABLED", True)
 
-# Live demos should degrade gracefully if the API key, network, or SDK is
+# Live runs should degrade gracefully if the API key, network, or SDK is
 # unavailable. When enabled, the Streamlit app skips Anthropic client
 # construction and uses local fallback quiz/feedback/plan paths.
-OFFLINE_DEMO_MODE: bool = _env_bool("STUDY_TUTOR_OFFLINE_DEMO", False)
+OFFLINE_MODE: bool = _env_bool("STUDY_TUTOR_OFFLINE_MODE", False)
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +239,7 @@ __all__ = [
     "MAX_EASINESS_FACTOR",
     "DAILY_REVIEW_CAP",
     "QUIZ_VERIFIER_ENABLED",
-    "OFFLINE_DEMO_MODE",
+    "OFFLINE_MODE",
     "RESOURCE_AGENT_EAGER_TARGETED_EXPLANATION",
     "snapshot",
 ]

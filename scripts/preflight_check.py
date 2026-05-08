@@ -1,14 +1,14 @@
 """
-Demo preflight checklist.
+Preflight checklist.
 
-Verifies that the local environment is ready for a live demo of the
-AI Study Tutor app. Each check is an independent function returning a
+Verifies that the local environment is ready to run the AI Study Tutor app.
+Each check is an independent function returning a
 ``CheckResult`` so the same checks can be exercised by unit tests
 without running the full CLI.
 
 Usage
 -----
-    python scripts/demo_preflight.py
+    python scripts/preflight_check.py
 
 Exit codes
 ----------
@@ -33,8 +33,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = REPO_ROOT / ".env"
 ENV_EXAMPLE_PATH = REPO_ROOT / ".env.example"
-DEMO_PROFILE_PATH = REPO_ROOT / "data" / "demo_student.json"
-GENERATE_DEMO_SCRIPT = REPO_ROOT / "tests" / "generate_demo.py"
+SAMPLE_PROFILE_PATH = REPO_ROOT / "data" / "sample_student.json"
+GENERATE_SAMPLE_SCRIPT = REPO_ROOT / "tests" / "generate_sample_profile.py"
 
 # Marker that the .env / .env.example template uses for an unset key.
 PLACEHOLDER_KEY = "your_anthropic_api_key_here"
@@ -112,14 +112,14 @@ def check_imports(modules: tuple[str, ...] = REQUIRED_MODULES) -> CheckResult:
     )
 
 
-def _offline_demo_enabled(env_path: Path = ENV_PATH) -> bool:
-    raw = os.environ.get("STUDY_TUTOR_OFFLINE_DEMO", "").strip()
+def _offline_mode_enabled(env_path: Path = ENV_PATH) -> bool:
+    raw = os.environ.get("STUDY_TUTOR_OFFLINE_MODE", "").strip()
     if raw:
         return raw.lower() in {"1", "true", "yes", "on"}
     try:
         from dotenv import dotenv_values  # type: ignore[import-not-found]
         if env_path.exists():
-            raw = str(dotenv_values(env_path).get("STUDY_TUTOR_OFFLINE_DEMO", "") or "").strip()
+            raw = str(dotenv_values(env_path).get("STUDY_TUTOR_OFFLINE_MODE", "") or "").strip()
     except ImportError:
         pass
     return raw.lower() in {"1", "true", "yes", "on"}
@@ -145,16 +145,16 @@ def check_api_key(env_path: Path = ENV_PATH) -> CheckResult:
 
     NEVER prints the key value itself.
     """
-    if _offline_demo_enabled(env_path):
+    if _offline_mode_enabled(env_path):
         return CheckResult(
             name="ANTHROPIC_API_KEY",
             ok=True,
-            detail="skipped because STUDY_TUTOR_OFFLINE_DEMO=1",
+            detail="skipped because STUDY_TUTOR_OFFLINE_MODE=1",
         )
 
     # Prefer a real shell-provided key over .env. This matches app
     # startup (`load_dotenv(..., override=False)`) and avoids a common
-    # demo trap: .env still contains the template placeholder, but the
+    # Common setup trap: .env still contains the template placeholder, but the
     # presenter correctly exported a real key in the terminal.
     raw = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if raw and raw not in PLACEHOLDER_KEYS and raw.startswith("sk-") and len(raw) > 30:
@@ -216,35 +216,35 @@ def _display_path(path: Path) -> str:
         return str(path)
 
 
-def check_demo_profile(profile_path: Path = DEMO_PROFILE_PATH) -> CheckResult:
+def check_sample_profile(profile_path: Path = SAMPLE_PROFILE_PATH) -> CheckResult:
     if not profile_path.exists():
         return CheckResult(
-            name="Demo profile",
+            name="Sample profile",
             ok=False,
             detail=f"missing {_display_path(profile_path)}",
-            fix="python tests/generate_demo.py",
+            fix="python tests/generate_sample_profile.py",
         )
     return CheckResult(
-        name="Demo profile",
+        name="Sample profile",
         ok=True,
         detail=f"present at {_display_path(profile_path)}",
     )
 
 
-def regenerate_demo_profile(
-    script_path: Path = GENERATE_DEMO_SCRIPT,
+def regenerate_sample_profile(
+    script_path: Path = GENERATE_SAMPLE_SCRIPT,
     python_executable: str | None = None,
 ) -> CheckResult:
-    """Reuse tests/generate_demo.py to recreate the sample profile.
+    """Reuse tests/generate_sample_profile.py to recreate the sample profile.
 
     Returns a check result describing whether regeneration succeeded.
     """
     if not script_path.exists():
         return CheckResult(
-            name="Regenerate demo profile",
+            name="Regenerate sample profile",
             ok=False,
             detail=f"{script_path} not found",
-            fix="restore tests/generate_demo.py from version control",
+            fix="restore tests/generate_sample_profile.py from version control",
         )
     py = python_executable or sys.executable
     try:
@@ -257,14 +257,14 @@ def regenerate_demo_profile(
         )
     except subprocess.TimeoutExpired:
         return CheckResult(
-            name="Regenerate demo profile",
+            name="Regenerate sample profile",
             ok=False,
             detail="generator timed out after 60s",
-            fix="run python tests/generate_demo.py manually and check the error",
+            fix="run python tests/generate_sample_profile.py manually and check the error",
         )
     except OSError as exc:
         return CheckResult(
-            name="Regenerate demo profile",
+            name="Regenerate sample profile",
             ok=False,
             detail=f"could not launch generator: {exc}",
             fix="check that python is on PATH and the venv is activated",
@@ -273,15 +273,15 @@ def regenerate_demo_profile(
         # stderr can leak detail but not the key (the generator does not see the key).
         tail = (result.stderr or result.stdout or "").strip().splitlines()[-3:]
         return CheckResult(
-            name="Regenerate demo profile",
+            name="Regenerate sample profile",
             ok=False,
             detail="generator exited non-zero: " + " | ".join(tail),
-            fix="run python tests/generate_demo.py manually for the full error",
+            fix="run python tests/generate_sample_profile.py manually for the full error",
         )
     return CheckResult(
-        name="Regenerate demo profile",
+        name="Regenerate sample profile",
         ok=True,
-        detail="created data/demo_student.json",
+        detail="created data/sample_student.json",
     )
 
 
@@ -292,23 +292,23 @@ def run_all_checks(auto_regenerate: bool = True) -> list[CheckResult]:
     """Run every preflight check in order. Returns the result list."""
     results: list[CheckResult] = []
     results.append(check_python_version())
-    offline = _offline_demo_enabled(ENV_PATH)
+    offline = _offline_mode_enabled(ENV_PATH)
     results.append(check_imports(OFFLINE_REQUIRED_MODULES if offline else REQUIRED_MODULES))
     results.append(check_env_file_exists(ENV_PATH))
     results.append(check_api_key(ENV_PATH))
-    profile = check_demo_profile(DEMO_PROFILE_PATH)
+    profile = check_sample_profile(SAMPLE_PROFILE_PATH)
     results.append(profile)
     if not profile.ok and auto_regenerate:
-        regen = regenerate_demo_profile(GENERATE_DEMO_SCRIPT)
+        regen = regenerate_sample_profile(GENERATE_SAMPLE_SCRIPT)
         results.append(regen)
         if regen.ok:
             # Re-check after regeneration so the final report reflects reality.
-            results.append(check_demo_profile(DEMO_PROFILE_PATH))
+            results.append(check_sample_profile(SAMPLE_PROFILE_PATH))
     return results
 
 
 def render_report(results: list[CheckResult]) -> str:
-    lines = ["", "─── Demo Preflight ───"]
+    lines = ["", "─── Preflight Check ───"]
     for r in results:
         lines.append(r.render())
     lines.append("")

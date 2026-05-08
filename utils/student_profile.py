@@ -374,8 +374,8 @@ def record_quiz_result(profile: dict, course: str, topic: str,
         confidence: Student's self-rated confidence 1-5
         now_fn: Optional clock callable returning a tz-aware datetime, used
                 for stamping the quiz_history entry's ``timestamp``. Defaults
-                to ``datetime.now(timezone.utc)``. Tests and demo
-                generators inject a fake clock so generated histories can
+                to ``datetime.now(timezone.utc)``. Tests and the sample
+                profile generator inject a fake clock so generated histories can
                 trace a deterministic timeline rather than collapsing onto
                 the wall clock at script-run time.
 

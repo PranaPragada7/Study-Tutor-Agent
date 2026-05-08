@@ -5,7 +5,7 @@ Creates a pre-loaded student profile with realistic quiz history, useful for
 inspecting the Progress and Diagnostics dashboards without starting from a blank
 profile.
 
-Run with: python tests/generate_demo.py
+Run with: python tests/generate_sample_profile.py
 """
 
 import sys
@@ -20,7 +20,7 @@ from utils.spaced_repetition import SpacedRepetitionScheduler
 
 
 class _MutableClock:
-    """Tiny advancing clock so the demo's quiz_history and SM-2 schedule
+    """Tiny advancing clock so the sample profile quiz_history and SM-2 schedule
     actually reflect 2 simulated weeks instead of all collapsing to 'now'.
 
     Used as ``now_fn`` for ``SpacedRepetitionScheduler``: each iteration
@@ -37,13 +37,13 @@ class _MutableClock:
         return self.t
 
 
-def generate_demo_profile():
-    """Generate a realistic demo profile with learning progression."""
+def generate_sample_profile():
+    """Generate a realistic sample profile with learning progression."""
 
-    print("📚 Generating sample profile: 'Demo Student'")
+    print("📚 Generating sample profile: 'Sample Student'")
 
     # Create profile with courses
-    profile = create_profile("Demo Student", [
+    profile = create_profile("Sample Student", [
         {"name": "Intro to CS", "difficulty": 3, "exam_date": "2025-05-15"},
         {"name": "Calculus II", "difficulty": 4, "exam_date": "2025-05-20"},
     ], learning_style="balanced")
@@ -171,7 +171,7 @@ def generate_demo_profile():
             question = random.choice(sample_questions.get(topic, [f"Question about {topic}?"]))
 
             # Inject the simulated timestamp via record_quiz_result's
-            # ``now_fn`` hook so the demo's quiz_history traces a 2-week
+            # ``now_fn`` hook so the sample profile quiz_history traces a 2-week
             # study arc instead of collapsing to wall-clock-now.
             profile = record_quiz_result(
                 profile, course, topic, difficulty, correct,
@@ -186,19 +186,19 @@ def generate_demo_profile():
 
     # Save spaced repetition state
     profile["spaced_repetition"] = scheduler.to_dict()
-    save_profile("Demo Student", profile)
+    save_profile("Sample Student", profile)
 
     print(f"  ✅ Created profile with {profile['total_quizzes']} quiz results")
     print(f"  📊 Courses: {', '.join(profile['courses'].keys())}")
     for cname, cdata in profile["courses"].items():
         acc = cdata["total_correct"] / max(cdata["total_attempted"], 1) * 100
         print(f"     {cname}: {acc:.1f}% accuracy over {cdata['total_attempted']} questions")
-    print(f"  💾 Saved to: data/demo_student.json")
+    print(f"  💾 Saved to: data/sample_student.json")
     print()
-    print("  To use: run the app and type 'Demo Student' as your name, then click Load Profile.")
+    print("  To use: run the app and click Load Sample Student in the sidebar.")
 
     return profile
 
 
 if __name__ == "__main__":
-    generate_demo_profile()
+    generate_sample_profile()

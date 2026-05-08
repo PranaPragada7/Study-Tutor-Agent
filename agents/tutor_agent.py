@@ -624,7 +624,7 @@ PERFORMANCE SO FAR:{perf_info if perf_info else " No quizzes taken yet."}{recent
                 )
             focus = ", ".join(t for t in weak_topics[:3] if t) or "the next quiz topic"
             assistant_message = (
-                "I'm running in local demo mode, so I can't call the live AI service right now. "
+                "I'm running in offline mode, so I can't call the live AI service right now. "
                 f"Based on your saved profile for {courses}, a good next move is to review {focus}, "
                 "then answer one adaptive quiz question and check the Progress and Diagnostics tabs."
             )
@@ -980,7 +980,7 @@ Respond in EXACTLY this JSON format and nothing else:
 
         The LLM explanation is still the rich natural-language teaching
         response. This card is a stable UI summary that can be tested and
-        demoed even when the live LLM is offline.
+        shown even when the live LLM is offline.
         """
         topic = safe_label(quiz_data.get("topic", ""), limit=80) or "this topic"
         try:
@@ -1105,7 +1105,7 @@ Respond in EXACTLY this JSON format and nothing else:
             now_fn: Optional clock for stamping the persisted quiz_history
                     entry. Threaded through to ``record_quiz_result``.
                     Default is ``datetime.now(timezone.utc)``. Tests and
-                    demo generators backdate via this hook.
+                    the sample profile generator backdates via this hook.
         """
         # Clamp confidence at the public boundary. Streamlit's slider
         # already bounds it 1-5, but tests, simulations, and any
@@ -1347,7 +1347,7 @@ for remembering this concept."""
             f"**Today:** Review spaced-repetition items first: {due}. Then do one adaptive quiz.\n\n"
             f"**Next focus:** Spend 25 minutes each on: {weak_text}.\n\n"
             f"**This week:** Watch for upcoming reviews: {upcoming_text}.\n\n"
-            "**Demo note:** This plan was generated locally because the live AI service is unavailable. "
+            "**Offline note:** This plan was generated locally because the live AI service is unavailable. "
             "The adaptive quiz, mastery tracking, spaced repetition, and diagnostics still work from the saved profile."
         )
 

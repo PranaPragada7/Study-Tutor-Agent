@@ -112,7 +112,7 @@ def test_quiz_session_report_includes_question_level_signals():
 def test_quiz_session_report_keeps_full_explanation_text():
     long_explanation = (
         "This explanation is intentionally long so the report keeps the full "
-        "teaching detail instead of cutting it off in the demo view. "
+        "teaching detail instead of cutting it off in the sample profile. "
         "Students and presenters need the complete rationale when reviewing "
         "the five-question session report, especially for misconception "
         "signals and recovery steps."

@@ -14,7 +14,7 @@
 venv/
 .venv/
 env/
-.demo-venv/
+.local-venv/
 .tmp/
 .pytest-tmp/
 .pytest-work/
@@ -37,7 +37,7 @@ __pycache__/
 # ──────────────────────────────────────────────
 data/*
 !data/.gitkeep
-!data/demo_student.json
+!data/sample_student.json
 data/logs/
 
 # ──────────────────────────────────────────────

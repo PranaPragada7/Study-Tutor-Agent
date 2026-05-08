@@ -214,7 +214,7 @@ class AdaptiveEngine:
             return zpd_score + cold_exploration + weakness_bonus
 
         # With the new reward shape, avg reward in [0, 1] approximates the
-        # student's demonstrated mastery on this (topic, difficulty) arm.
+        # student's observed mastery on this (topic, difficulty) arm.
         estimated_mastery = arm["total_reward"] / arm["count"]
 
         # ZPD score peaks at mastery == 0.8 (80% success rate target).
@@ -230,7 +230,7 @@ class AdaptiveEngine:
         """
         Estimate mastery for a (topic, difficulty) arm we've never pulled.
 
-        Anchor on the student's demonstrated accuracy for this topic (when
+        Anchor on the student's observed accuracy for this topic (when
         we have any), then shift down for harder difficulties and up for
         easier ones. Neutral 0.5 prior when there is no topic data yet.
 
@@ -316,7 +316,7 @@ class AdaptiveEngine:
                     replay so epsilon is not decayed once per entry
                     (see LA-5).
 
-        The reward signal approximates "demonstrated mastery" in [0, 1]:
+        The reward signal approximates "observed mastery" in [0, 1]:
           - Correct + high confidence  -> ~1.0 (true mastery)
           - Correct + low confidence   -> ~0.6 (shaky but right)
           - Wrong   + low confidence   -> ~0.3 (known gap)
@@ -326,7 +326,7 @@ class AdaptiveEngine:
 
         ``confidence`` and ``difficulty`` are CLAMPED to [1, 5] before any
         math runs. The Streamlit UI bounds them with sliders, but the
-        method is also called by tests, simulations, the demo generator,
+        method is also called by tests, simulations, the sample profile generator,
         and any future programmatic caller. A bad input (``confidence=10``)
         would have generated rewards outside [0, 1] and silently broken
         the bandit's ZPD math; clamping at the boundary is the cheapest
@@ -417,7 +417,7 @@ class AdaptiveEngine:
 
         This is intentionally read-only: it does not change the bandit's
         selection policy, reward state, or exploration rate. The Streamlit UI
-        uses it to make the adaptive choice visible during a demo.
+        uses it to make the adaptive choice visible in the UI.
         """
         topic = str(topic or "this topic")
         try:

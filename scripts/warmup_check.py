@@ -1,17 +1,17 @@
 """
-Demo warm-up.
+Sample Profile warm-up.
 
-Loads the ``Demo Student`` profile, instantiates a TutorAgent, and asks
+Loads the ``Sample Student`` profile, instantiates a TutorAgent, and asks
 it to generate one quiz question for ``Intro to CS``. The profile is
 NOT saved back to disk — quiz_history is left untouched so the live
-demo starts from a clean slate.
+run starts from a clean slate.
 
 The script reports whether a real Anthropic call succeeded or whether
 the fallback path was taken. It NEVER prints the API key.
 
 Usage
 -----
-    python scripts/demo_warmup.py
+    python scripts/warmup_check.py
 
 Exit codes
 ----------
@@ -46,10 +46,10 @@ def _force_utf8_stdout() -> None:
 
 
 def warmup() -> int:
-    profile_path = REPO_ROOT / "data" / "demo_student.json"
+    profile_path = REPO_ROOT / "data" / "sample_student.json"
     if not profile_path.exists():
-        print("❌ data/demo_student.json not found.")
-        print("   fix: python tests/generate_demo.py")
+        print("❌ data/sample_student.json not found.")
+        print("   fix: python tests/generate_sample_profile.py")
         return 1
 
     # Imports deferred so a missing dep produces a readable error rather
@@ -63,10 +63,10 @@ def warmup() -> int:
         print("   fix: pip install -r requirements.txt and run from the repo root")
         return 1
 
-    profile = load_profile("Demo Student")
+    profile = load_profile("Sample Student")
     if profile is None:
-        print("❌ load_profile('Demo Student') returned None.")
-        print("   fix: re-run python tests/generate_demo.py")
+        print("❌ load_profile('Sample Student') returned None.")
+        print("   fix: re-run python tests/generate_sample_profile.py")
         return 1
 
     # Work on a deep copy so the loaded dict cannot be mutated and
@@ -96,9 +96,9 @@ def warmup() -> int:
     if history_after != history_before:
         print(
             "⚠️  Warm-up appended to quiz_history "
-            f"({history_before} → {history_after}). The live demo will "
+            f"({history_before} → {history_after}). The live app session will "
             "start with that extra entry. Consider re-running "
-            "tests/generate_demo.py before the demo."
+            "tests/generate_sample_profile.py before presenting."
         )
 
     fallback = (

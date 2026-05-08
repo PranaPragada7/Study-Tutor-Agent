@@ -1,4 +1,4 @@
-"""All-in-one live-demo readiness check.
+"""All-in-one live-flow readiness check.
 
 This script exercises the exact components that should be visible during the
 presentation:
@@ -10,11 +10,11 @@ presentation:
 - MessageBus request/provide-materials flow
 
 It avoids live LLM calls for the interaction check so the result is stable and
-safe to run right before presenting. Run `demo_warmup.py` separately to verify
+safe to run right before presenting. Run `warmup_check.py` separately to verify
 the live Claude call.
 
 Run:
-    python scripts/demo_live_check.py
+    python scripts/live_flow_check.py
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.demo_preflight import render_report, run_all_checks
+from scripts.preflight_check import render_report, run_all_checks
 
 
 def _fail(message: str) -> None:
@@ -54,7 +54,7 @@ def _check_5_question_flow() -> list[str]:
     tutor_module.save_profile = lambda _name, _profile: True
     try:
         profile = create_profile(
-            "Live Demo Check",
+            "Live Flow Check",
             [{"name": "Intro to CS", "difficulty": 3}],
             learning_style="balanced",
         )
@@ -201,7 +201,7 @@ def _force_utf8_stdout() -> None:
 
 def main() -> int:
     _force_utf8_stdout()
-    print("\n─── Live Demo Readiness Check ───")
+    print("\n─── Live Flow Readiness Check ───")
     preflight = run_all_checks(auto_regenerate=True)
     print(render_report(preflight))
     if not all(result.ok for result in preflight):
@@ -211,12 +211,12 @@ def main() -> int:
     try:
         notes = _check_5_question_flow()
     except Exception as exc:  # noqa: BLE001
-        print(f"❌ Demo interaction check failed: {exc}")
+        print(f"❌ Interaction check failed: {exc}")
         return 1
 
     for note in notes:
         print(f"✅ {note}")
-    print("\n✅ Live demo flow is ready. Run demo_warmup.py next if you want to verify live Claude.")
+    print("\n✅ Live flow is ready. Run warmup_check.py next if you want to verify live Claude.")
     return 0
 
 

@@ -42,9 +42,9 @@ if (-not $Python) {
     $env:PYTHONPATH = (Resolve-Path $VenvSitePackages).Path
 }
 
-$env:STUDY_TUTOR_OFFLINE_DEMO = "1"
+$env:STUDY_TUTOR_OFFLINE_MODE = "1"
 
-Write-Host "Starting AI Study Tutor in offline demo mode..."
+Write-Host "Starting AI Study Tutor in offline mode..."
 Write-Host "Open: http://localhost:8501"
-Write-Host "Load profile: Demo Student"
+Write-Host "Load profile: Sample Student"
 & $Python -m streamlit run app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false

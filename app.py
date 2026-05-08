@@ -42,7 +42,7 @@ from utils.quiz_session import (
 from utils.telemetry import COUNTERS, COUNTER_DISPLAY_ORDER
 from agents.tutor_agent import TutorAgent
 from agents.resource_agent import ResourceAgent
-from config import OFFLINE_DEMO_MODE
+from config import OFFLINE_MODE
 
 try:
     from anthropic import Anthropic
@@ -221,8 +221,8 @@ def inject_app_styles() -> None:
 
 
 def render_app_header() -> None:
-    mode_label = "Offline ready" if OFFLINE_DEMO_MODE else "Live API"
-    mode_class = "" if OFFLINE_DEMO_MODE else "accent"
+    mode_label = "Offline ready" if OFFLINE_MODE else "Live API"
+    mode_class = "" if OFFLINE_MODE else "accent"
     st.markdown(
         f"""
         <div class="app-header">
@@ -282,14 +282,14 @@ def get_anthropic_client() -> "Anthropic | None":
 
     The API key is read explicitly from the environment — no
     hardcoded keys. If the SDK or key is unavailable, return ``None``
-    so the agents can use their local fallback paths and the live demo
+    so the agents can use their local fallback paths and the app
     still has a usable backup flow.
 
     Returns ``None`` (not raises) when the SDK itself is not installed
     so callers can degrade gracefully to fallback responses.
     """
-    if OFFLINE_DEMO_MODE:
-        st.sidebar.info("Offline demo mode is on. Live Claude calls are skipped.")
+    if OFFLINE_MODE:
+        st.sidebar.info("Offline mode is on. Live Claude calls are skipped.")
         return None
     if not _HAS_ANTHROPIC:
         st.sidebar.warning("Anthropic SDK is not installed. Using local fallback mode.")
@@ -539,34 +539,34 @@ def render_quiz_session_snapshot(session: dict, *, expanded_rows: bool = False) 
 with st.sidebar:
     st.header("Student Profile")
 
-    st.markdown("#### Demo")
-    demo_cols = st.columns(2)
-    with demo_cols[0]:
-        if st.button("Load Demo Student", use_container_width=True, type="primary"):
-            demo_profile = load_profile("Demo Student")
-            if demo_profile:
-                load_profile_into_session(demo_profile)
+    st.markdown("#### Sample Profile")
+    sample_cols = st.columns(2)
+    with sample_cols[0]:
+        if st.button("Load Sample Student", use_container_width=True, type="primary"):
+            sample_profile = load_profile("Sample Student")
+            if sample_profile:
+                load_profile_into_session(sample_profile)
                 st.session_state.chat_messages = []
                 COUNTERS.reset()
-                st.success("Demo Student loaded.")
+                st.success("Sample Student loaded.")
                 st.rerun()
             else:
                 st.warning(
-                    "Demo profile is missing. Run python scripts\\demo_preflight.py "
+                    "Sample profile is missing. Run python scripts\\preflight_check.py "
                     "to regenerate it."
                 )
-    with demo_cols[1]:
-        if st.button("Reset Demo View", use_container_width=True):
-            demo_profile = load_profile("Demo Student")
-            if demo_profile:
-                load_profile_into_session(demo_profile)
+    with sample_cols[1]:
+        if st.button("Reset Sample Profile", use_container_width=True):
+            sample_profile = load_profile("Sample Student")
+            if sample_profile:
+                load_profile_into_session(sample_profile)
                 st.session_state.chat_messages = []
                 COUNTERS.reset()
-                st.success("Demo view reset.")
+                st.success("Sample profile reset.")
                 st.rerun()
             else:
                 reset_quiz_ui_state()
-                st.warning("Demo profile could not be loaded.")
+                st.warning("Sample profile could not be loaded.")
 
     st.divider()
 

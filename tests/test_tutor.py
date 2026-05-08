@@ -1058,7 +1058,7 @@ class TestPromptCaching:
 # ═══════════════════════════════════════════════
 
 class TestClockInjection:
-    """The now_fn hook lets demos and tests stamp quiz_history entries
+    """The now_fn hook lets presentations and tests stamp quiz_history entries
     with deterministic, backdated timestamps instead of wall-clock now."""
 
     def setup_method(self):

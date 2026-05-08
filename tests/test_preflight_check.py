@@ -1,5 +1,5 @@
 """
-Tests for scripts/demo_preflight.py.
+Tests for scripts/preflight_check.py.
 
 These tests must NOT make real network calls and must NOT make real
 Anthropic API calls. The preflight checks themselves do not call
@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-import demo_preflight as pf  # noqa: E402
+import preflight_check as pf  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -141,19 +141,19 @@ def test_real_shell_key_wins_over_placeholder_dotenv(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Demo profile check
+# Sample profile check
 # ---------------------------------------------------------------------------
-def test_demo_profile_missing(tmp_path):
-    result = pf.check_demo_profile(tmp_path / "demo_student.json")
+def test_sample_profile_missing(tmp_path):
+    result = pf.check_sample_profile(tmp_path / "sample_student.json")
     assert not result.ok
     assert "missing" in result.detail
-    assert "generate_demo.py" in result.fix
+    assert "generate_sample_profile.py" in result.fix
 
 
-def test_demo_profile_present(tmp_path):
-    p = tmp_path / "demo_student.json"
-    p.write_text(json.dumps({"name": "Demo Student"}), encoding="utf-8")
-    result = pf.check_demo_profile(p)
+def test_sample_profile_present(tmp_path):
+    p = tmp_path / "sample_student.json"
+    p.write_text(json.dumps({"name": "Sample Student"}), encoding="utf-8")
+    result = pf.check_sample_profile(p)
     assert result.ok
 
 
@@ -161,20 +161,20 @@ def test_demo_profile_present(tmp_path):
 # Regenerate via subprocess — guard against accidentally launching
 # something. We use a no-op script the test writes itself.
 # ---------------------------------------------------------------------------
-def test_regenerate_demo_profile_handles_missing_script(tmp_path):
+def test_regenerate_sample_profile_handles_missing_script(tmp_path):
     # Pass a path that does not exist; expect a clean error result, not
     # a raised exception.
-    result = pf.regenerate_demo_profile(tmp_path / "no_such_script.py")
+    result = pf.regenerate_sample_profile(tmp_path / "no_such_script.py")
     assert not result.ok
     assert "not found" in result.detail
 
 
-def test_regenerate_demo_profile_runs_a_dummy_generator(tmp_path):
+def test_regenerate_sample_profile_runs_a_dummy_generator(tmp_path):
     # Write a tiny no-op generator the preflight can launch. This proves
     # the subprocess wiring works without invoking the real generator.
     fake_gen = tmp_path / "fake_generator.py"
     fake_gen.write_text("print('ok')\n", encoding="utf-8")
-    result = pf.regenerate_demo_profile(fake_gen, python_executable=sys.executable)
+    result = pf.regenerate_sample_profile(fake_gen, python_executable=sys.executable)
     assert result.ok
     assert "created" in result.detail.lower()
 
@@ -199,32 +199,32 @@ def test_run_all_checks_does_not_call_network(monkeypatch, tmp_path):
 
     # Point checks at temp paths so we don't read the real repo state.
     monkeypatch.setattr(pf, "ENV_PATH", tmp_path / ".env")
-    monkeypatch.setattr(pf, "DEMO_PROFILE_PATH", tmp_path / "demo_student.json")
+    monkeypatch.setattr(pf, "SAMPLE_PROFILE_PATH", tmp_path / "sample_student.json")
     # Use a fake generator that should not actually be invoked since we
     # turn auto_regenerate off.
-    monkeypatch.setattr(pf, "GENERATE_DEMO_SCRIPT", tmp_path / "no_gen.py")
+    monkeypatch.setattr(pf, "GENERATE_SAMPLE_SCRIPT", tmp_path / "no_gen.py")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
     results = pf.run_all_checks(auto_regenerate=False)
-    # Should produce: python, imports, env, key, demo profile = 5 entries.
+    # Should produce: python, imports, env, key, sample profile = 5 entries.
     assert len(results) == 5
     names = [r.name for r in results]
     assert "Python version" in names
     assert "Required imports" in names
     assert ".env file" in names
     assert "ANTHROPIC_API_KEY" in names
-    assert "Demo profile" in names
+    assert "Sample profile" in names
 
 
 def test_render_report_marks_failures(monkeypatch, tmp_path):
     monkeypatch.setattr(pf, "ENV_PATH", tmp_path / ".env")
-    monkeypatch.setattr(pf, "DEMO_PROFILE_PATH", tmp_path / "demo_student.json")
-    monkeypatch.setattr(pf, "GENERATE_DEMO_SCRIPT", tmp_path / "no_gen.py")
+    monkeypatch.setattr(pf, "SAMPLE_PROFILE_PATH", tmp_path / "sample_student.json")
+    monkeypatch.setattr(pf, "GENERATE_SAMPLE_SCRIPT", tmp_path / "no_gen.py")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
     results = pf.run_all_checks(auto_regenerate=False)
     text = pf.render_report(results)
-    assert "Demo Preflight" in text
+    assert "Preflight Check" in text
     assert "❌" in text  # at least one failure (env, key, profile all missing)
 
 
@@ -244,13 +244,13 @@ def test_no_real_anthropic_call_during_preflight(monkeypatch, tmp_path):
 
     monkeypatch.setattr(anthropic, "Anthropic", _no_client)
 
-    # Reload demo_preflight to pick up the patched module — but in fact
-    # demo_preflight does NOT import anthropic at all; this assertion
+    # Reload preflight_check to pick up the patched module — but in fact
+    # preflight_check does NOT import anthropic at all; this assertion
     # is the real check.
     importlib.reload(pf)
     monkeypatch.setattr(pf, "ENV_PATH", tmp_path / ".env")
-    monkeypatch.setattr(pf, "DEMO_PROFILE_PATH", tmp_path / "demo_student.json")
-    monkeypatch.setattr(pf, "GENERATE_DEMO_SCRIPT", tmp_path / "no_gen.py")
+    monkeypatch.setattr(pf, "SAMPLE_PROFILE_PATH", tmp_path / "sample_student.json")
+    monkeypatch.setattr(pf, "GENERATE_SAMPLE_SCRIPT", tmp_path / "no_gen.py")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
     pf.run_all_checks(auto_regenerate=False)

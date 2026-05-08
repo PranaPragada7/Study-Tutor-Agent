@@ -201,12 +201,12 @@ def test_course_input_explains_ambiguous_course_numbers(temp_data_dir, fake_api_
     assert "Georgia Tech CS 7641 - Machine Learning" in placeholder
 
 
-def test_demo_profile_button_loads_existing_demo(temp_data_dir, fake_api_key):
-    """The sidebar demo shortcut should load Demo Student without typing."""
+def test_sample_profile_button_loads_existing_sample(temp_data_dir, fake_api_key):
+    """The sidebar sample shortcut should load Sample Student without typing."""
     from utils.student_profile import create_profile
 
     create_profile(
-        "Demo Student",
+        "Sample Student",
         [{"name": "Intro to CS", "difficulty": 3, "exam_date": ""}],
         learning_style="balanced",
     )
@@ -215,19 +215,19 @@ def test_demo_profile_button_loads_existing_demo(temp_data_dir, fake_api_key):
     at.run(timeout=10)
     assert not at.exception
 
-    demo_buttons = [
+    sample_buttons = [
         b for b in at.sidebar.button
-        if "Load Demo Student" in (b.label or "")
+        if "Load Sample Student" in (b.label or "")
     ]
-    assert demo_buttons, "Couldn't find the Load Demo Student button"
+    assert sample_buttons, "Couldn't find the Load Sample Student button"
 
-    demo_buttons[0].click().run(timeout=10)
-    assert not at.exception, f"Demo profile load raised: {at.exception}"
+    sample_buttons[0].click().run(timeout=10)
+    assert not at.exception, f"Sample profile load raised: {at.exception}"
 
     assert "profile" in at.session_state
     profile = at.session_state["profile"]
     assert profile is not None
-    assert profile["name"] == "Demo Student"
+    assert profile["name"] == "Sample Student"
     assert "Intro to CS" in profile["courses"]
 
     assert "tutor" in at.session_state

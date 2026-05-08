@@ -1,0 +1,57 @@
+# ──────────────────────────────────────────────
+# Secrets — NEVER commit
+# ──────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.env.txt
+*.env.local
+.streamlit/secrets.toml
+
+# ──────────────────────────────────────────────
+# Python virtual environments
+# ──────────────────────────────────────────────
+venv/
+.venv/
+env/
+.demo-venv/
+.tmp/
+.pytest-tmp/
+.pytest-work/
+.pytest-work*/
+
+# ──────────────────────────────────────────────
+# Python bytecode / caches
+# ──────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+
+# ──────────────────────────────────────────────
+# Student data — contains real profile JSON.
+# Keep an empty .gitkeep so the folder structure
+# survives a fresh clone.
+# ──────────────────────────────────────────────
+data/*
+!data/.gitkeep
+!data/demo_student.json
+data/logs/
+
+# ──────────────────────────────────────────────
+# Evaluation outputs — CSV metrics, eval report,
+# and the simulated-student persona profiles.
+# These are reproducible from `python tests/simulate_students.py`,
+# so a fresh clone shouldn't ship them.
+# ──────────────────────────────────────────────
+eval-output/
+
+# ──────────────────────────────────────────────
+# OS / editor noise
+# ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

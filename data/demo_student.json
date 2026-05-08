@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "name": "Demo Student",
+  "created_at": "2026-04-21T14:00:00+00:00",
+  "learning_style": "balanced",
+  "courses": {
+    "Intro to CS": {
+      "exam_date": "2026-05-15",
+      "self_rated_difficulty": 3,
+      "topics": {
+        "Variables & Types": {
+          "correct": 2,
+          "attempted": 2,
+          "current_difficulty": 3
+        },
+        "Functions": {
+          "correct": 1,
+          "attempted": 2,
+          "current_difficulty": 3
+        },
+        "Recursion": {
+          "correct": 1,
+          "attempted": 3,
+          "current_difficulty": 2
+        },
+        "Data Structures": {
+          "correct": 1,
+          "attempted": 1,
+          "current_difficulty": 2
+        }
+      },
+      "total_correct": 5,
+      "total_attempted": 8
+    },
+    "Calculus II": {
+      "exam_date": "2026-05-20",
+      "self_rated_difficulty": 4,
+      "topics": {
+        "Integration by Parts": {
+          "correct": 1,
+          "attempted": 2,
+          "current_difficulty": 4
+        },
+        "Series Convergence": {
+          "correct": 1,
+          "attempted": 2,
+          "current_difficulty": 2
+        },
+        "Taylor Series": {
+          "correct": 1,
+          "attempted": 2,
+          "current_difficulty": 2
+        }
+      },
+      "total_correct": 3,
+      "total_attempted": 6
+    }
+  },
+  "quiz_history": [
+    {
+      "id": "demo001",
+      "timestamp": "2026-04-22T15:10:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Variables & Types",
+      "difficulty": 2,
+      "correct": true,
+      "question": "What type does Python's input() return by default?",
+      "student_answer": "A",
+      "confidence": 4
+    },
+    {
+      "id": "demo002",
+      "timestamp": "2026-04-23T16:25:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Functions",
+      "difficulty": 2,
+      "correct": true,
+      "question": "What is the difference between a parameter and an argument?",
+      "student_answer": "C",
+      "confidence": 3
+    },
+    {
+      "id": "demo003",
+      "timestamp": "2026-04-24T17:40:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Recursion",
+      "difficulty": 3,
+      "correct": false,
+      "question": "What is the purpose of a base case in recursion?",
+      "student_answer": "C",
+      "confidence": 4
+    },
+    {
+      "id": "demo004",
+      "timestamp": "2026-04-25T18:05:00+00:00",
+      "course": "Calculus II",
+      "topic": "Integration by Parts",
+      "difficulty": 3,
+      "correct": true,
+      "question": "Which formula represents integration by parts?",
+      "student_answer": "A",
+      "confidence": 3
+    },
+    {
+      "id": "demo005",
+      "timestamp": "2026-04-26T14:35:00+00:00",
+      "course": "Calculus II",
+      "topic": "Series Convergence",
+      "difficulty": 3,
+      "correct": false,
+      "question": "When is the ratio test inconclusive?",
+      "student_answer": "D",
+      "confidence": 3
+    },
+    {
+      "id": "demo006",
+      "timestamp": "2026-04-27T19:10:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Recursion",
+      "difficulty": 2,
+      "correct": false,
+      "question": "Why can missing a base case cause a stack overflow?",
+      "student_answer": "B",
+      "confidence": 5
+    },
+    {
+      "id": "demo007",
+      "timestamp": "2026-04-28T20:15:00+00:00",
+      "course": "Calculus II",
+      "topic": "Taylor Series",
+      "difficulty": 2,
+      "correct": false,
+      "question": "What is a Maclaurin series?",
+      "student_answer": "C",
+      "confidence": 2
+    },
+    {
+      "id": "demo008",
+      "timestamp": "2026-04-29T16:50:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Data Structures",
+      "difficulty": 2,
+      "correct": true,
+      "question": "When would a dictionary be more useful than a list?",
+      "student_answer": "B",
+      "confidence": 4
+    },
+    {
+      "id": "demo009",
+      "timestamp": "2026-04-30T18:20:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Variables & Types",
+      "difficulty": 3,
+      "correct": true,
+      "question": "What is the difference between an integer and a float?",
+      "student_answer": "A",
+      "confidence": 5
+    },
+    {
+      "id": "demo010",
+      "timestamp": "2026-05-01T15:45:00+00:00",
+      "course": "Calculus II",
+      "topic": "Integration by Parts",
+      "difficulty": 4,
+      "correct": false,
+      "question": "How should you choose u in integration by parts?",
+      "student_answer": "D",
+      "confidence": 4
+    },
+    {
+      "id": "demo011",
+      "timestamp": "2026-05-02T17:05:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Functions",
+      "difficulty": 3,
+      "correct": false,
+      "question": "What does return None mean in a function?",
+      "student_answer": "B",
+      "confidence": 4
+    },
+    {
+      "id": "demo012",
+      "timestamp": "2026-05-03T19:30:00+00:00",
+      "course": "Calculus II",
+      "topic": "Series Convergence",
+      "difficulty": 2,
+      "correct": true,
+      "question": "What does absolute convergence imply?",
+      "student_answer": "A",
+      "confidence": 3
+    },
+    {
+      "id": "demo013",
+      "timestamp": "2026-05-04T14:10:00+00:00",
+      "course": "Intro to CS",
+      "topic": "Recursion",
+      "difficulty": 2,
+      "correct": true,
+      "question": "Which part of recursion makes progress toward stopping?",
+      "student_answer": "A",
+      "confidence": 3
+    },
+    {
+      "id": "demo014",
+      "timestamp": "2026-05-04T20:05:00+00:00",
+      "course": "Calculus II",
+      "topic": "Taylor Series",
+      "difficulty": 2,
+      "correct": true,
+      "question": "What point is a Maclaurin series centered at?",
+      "student_answer": "A",
+      "confidence": 3
+    }
+  ],
+  "total_quizzes": 14,
+  "session_count": 0,
+  "spaced_repetition": {
+    "Recursion": {
+      "easiness_factor": 1.8,
+      "interval_days": 1,
+      "repetition_count": 1,
+      "next_review": "2026-05-05T14:10:00+00:00",
+      "last_quality": 4,
+      "last_reviewed": "2026-05-04T14:10:00+00:00"
+    },
+    "Integration by Parts": {
+      "easiness_factor": 1.7,
+      "interval_days": 1,
+      "repetition_count": 0,
+      "next_review": "2026-05-02T15:45:00+00:00",
+      "last_quality": 2,
+      "last_reviewed": "2026-05-01T15:45:00+00:00"
+    },
+    "Series Convergence": {
+      "easiness_factor": 2.1,
+      "interval_days": 1,
+      "repetition_count": 1,
+      "next_review": "2026-05-03T19:30:00+00:00",
+      "last_quality": 4,
+      "last_reviewed": "2026-05-02T19:30:00+00:00"
+    },
+    "Taylor Series": {
+      "easiness_factor": 2.0,
+      "interval_days": 1,
+      "repetition_count": 1,
+      "next_review": "2026-05-05T20:05:00+00:00",
+      "last_quality": 4,
+      "last_reviewed": "2026-05-04T20:05:00+00:00"
+    }
+  },
+  "streak_tracker": [
+    true,
+    false,
+    false,
+    true,
+    false,
+    true,
+    true
+  ],
+  "resource_agent_state": {
+    "knowledge_base": {
+      "recursion": {
+        "display_name": "Recursion",
+        "materials": [
+          {
+            "title": "Recursion Base Cases",
+            "explanation": "A recursive function needs a stopping condition and a smaller recursive step.",
+            "analogy": "Think of opening nested folders until you reach one with no more folders inside.",
+            "common_mistake": "Students often call the same function again without moving closer to the base case.",
+            "self_test": "What input should make your recursive function stop immediately?"
+          }
+        ],
+        "prerequisites": [
+          "functions",
+          "the call stack",
+          "base cases"
+        ],
+        "times_requested": 2,
+        "insertion_order": 0
+      }
+    },
+    "weakness_history": [
+      {
+        "topic": "Recursion",
+        "course": "Intro to CS",
+        "accuracy": 0.3333,
+        "attempts": 3
+      },
+      {
+        "topic": "Integration by Parts",
+        "course": "Calculus II",
+        "accuracy": 0.5,
+        "attempts": 2
+      }
+    ]
+  }
+}

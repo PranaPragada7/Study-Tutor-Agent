@@ -81,20 +81,18 @@ def test_app_loads_without_exception(temp_data_dir, fake_api_key):
 def test_missing_api_key_no_traceback(temp_data_dir, monkeypatch):
     """
     Without ANTHROPIC_API_KEY, app.py must NOT show a Python traceback.
-    The friendly st.error path triggers when init_agents runs (i.e.
-    after Create Profile / Load Profile). On a bare-load with no
-    interaction, get_anthropic_client is never called, so the app loads
-    cleanly. This test verifies that bare-load remains clean.
+    The startup gate should render a clear connection error and stop the
+    page cleanly before profile controls become interactive.
     """
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
     at = AppTest.from_file(APP_PATH)
     at.run(timeout=10)
 
-    # The bare-load path should not raise — get_anthropic_client is
-    # cached but not invoked until init_agents runs.
     assert not at.exception, \
-        f"Bare app load should not raise without API key, got: {at.exception}"
+        f"App load should not raise without API key, got: {at.exception}"
+    errors = [error.value for error in at.error]
+    assert any("Claude connection required" in error for error in errors)
 
 
 # ═══════════════════════════════════════════════

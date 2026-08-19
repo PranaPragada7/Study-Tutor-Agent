@@ -19,6 +19,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from utils.student_profile import (
+    clear_chat_history,
     create_profile,
     delete_profile,
     export_profile_json,
@@ -42,7 +43,6 @@ from utils.quiz_session import (
 from utils.telemetry import COUNTERS, COUNTER_DISPLAY_ORDER
 from agents.tutor_agent import TutorAgent
 from agents.resource_agent import ResourceAgent
-from config import OFFLINE_MODE
 
 try:
     from anthropic import Anthropic
@@ -326,10 +326,8 @@ def inject_app_styles() -> None:
 
 
 def render_app_header() -> None:
-    mode_label = "Offline ready" if OFFLINE_MODE else "Live API"
-    mode_class = "" if OFFLINE_MODE else "accent"
     st.markdown(
-        f"""
+        """
         <div class="app-header">
             <div>
                 <div class="app-kicker">Adaptive learning workspace</div>
@@ -339,7 +337,7 @@ def render_app_header() -> None:
             <div class="status-row">
                 <span class="status-pill accent">Adaptive practice</span>
                 <span class="status-pill">Spaced review</span>
-                <span class="status-pill {mode_class}">{mode_label}</span>
+                <span class="status-pill accent">Claude assistant</span>
             </div>
         </div>
         """,
@@ -383,32 +381,41 @@ def cached_performance(profile: dict) -> dict:
 
 
 @st.cache_resource
-def get_anthropic_client() -> "Anthropic | None":
+def _build_anthropic_client(api_key: str) -> "Anthropic":
+    """Cache one HTTP client per configured key for connection reuse."""
+    return Anthropic(api_key=api_key)
+
+
+def get_anthropic_client() -> "Anthropic":
     """One shared Anthropic client per Streamlit server process.
 
-    The API key is read explicitly from the environment — no
-    hardcoded keys. If the SDK or key is unavailable, return ``None``
-    so the agents can use their local fallback paths and the app
-    still has a usable backup flow.
-
-    Returns ``None`` (not raises) when the SDK itself is not installed
-    so callers can degrade gracefully to fallback responses.
+    The API key is read explicitly from the environment. Study Tutor is a
+    live chatbot, so missing runtime configuration stops the app with a clear
+    setup message instead of silently changing to a different experience.
     """
-    if OFFLINE_MODE:
-        st.sidebar.info("Offline mode is on. Live Claude calls are skipped.")
-        return None
     if not _HAS_ANTHROPIC:
-        st.sidebar.warning("Anthropic SDK is not installed. Using local fallback mode.")
-        return None
+        raise RuntimeError(
+            "The Anthropic package is not installed. Run "
+            "`python -m pip install -r requirements.txt`."
+        )
     api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        st.sidebar.warning("ANTHROPIC_API_KEY is not set. Using local fallback mode.")
-        return None
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is required. Add it to a local `.env` file "
+            "or set it in the terminal before starting Study Tutor."
+        )
     try:
-        return Anthropic(api_key=api_key)
+        return _build_anthropic_client(api_key)
     except Exception as exc:  # noqa: BLE001
-        st.sidebar.warning(f"Could not initialise Anthropic client: {exc}. Using fallback mode.")
-        return None
+        raise RuntimeError(f"Claude client could not be initialized: {exc}") from exc
+
+
+try:
+    get_anthropic_client()
+except RuntimeError as exc:
+    st.error("Claude connection required")
+    st.info(str(exc))
+    st.stop()
 
 
 # ──────────────────────────────────────────────
@@ -476,6 +483,22 @@ def load_profile_into_session(profile: dict) -> None:
     st.session_state.tutor = tutor
     st.session_state.resource_agent = resource
     st.session_state.message_bus = bus
+    st.session_state.chat_messages = []
+    for exchange in profile.get("chat_history", []):
+        if not isinstance(exchange, dict):
+            continue
+        user_message = str(exchange.get("user_message", "")).strip()
+        assistant_response = str(exchange.get("assistant_response", "")).strip()
+        if user_message:
+            st.session_state.chat_messages.append({
+                "role": "user",
+                "content": user_message,
+            })
+        if assistant_response:
+            st.session_state.chat_messages.append({
+                "role": "assistant",
+                "content": assistant_response,
+            })
     reset_quiz_ui_state()
 
 
@@ -652,7 +675,6 @@ with st.sidebar:
             sample_profile = load_profile("Sample Student")
             if sample_profile:
                 load_profile_into_session(sample_profile)
-                st.session_state.chat_messages = []
                 COUNTERS.reset()
                 st.success("Sample Student loaded.")
                 st.rerun()
@@ -666,7 +688,6 @@ with st.sidebar:
             sample_profile = load_profile("Sample Student")
             if sample_profile:
                 load_profile_into_session(sample_profile)
-                st.session_state.chat_messages = []
                 COUNTERS.reset()
                 st.success("Sample profile reset.")
                 st.rerun()
@@ -699,7 +720,6 @@ with st.sidebar:
             loaded_profile = load_profile(selected_profile["name"])
             if loaded_profile:
                 load_profile_into_session(loaded_profile)
-                st.session_state.chat_messages = []
                 st.success(f"{loaded_profile['name']} loaded.")
                 st.rerun()
             else:
@@ -826,8 +846,10 @@ with st.sidebar:
             except Exception as e:  # noqa: BLE001
                 st.warning(f"Export unavailable: {e}")
 
-            # Clear chat history (in-memory only — not persisted to disk).
+            # Clear both the visible conversation and its durable profile copy.
             if st.button("Clear chat history", use_container_width=True):
+                clear_chat_history(p)
+                save_profile(p["name"], p)
                 st.session_state.chat_messages = []
                 if st.session_state.tutor:
                     st.session_state.tutor.conversation_history = []
@@ -1330,6 +1352,18 @@ with tab_progress:
             col1.metric("Accuracy", accuracy_label)
             col2.metric("Questions", data["attempted"])
             col3.metric("Topics Covered", data["num_topics_covered"])
+
+            if data.get("strong_topics"):
+                st.write("**Current strengths:**")
+                for strong_topic in data["strong_topics"]:
+                    accuracy = round(strong_topic["accuracy"] * 100, 1)
+                    st.progress(
+                        strong_topic["accuracy"],
+                        text=(
+                            f"{strong_topic['topic']}: {accuracy}% "
+                            f"({strong_topic['attempted']} questions)"
+                        ),
+                    )
 
             if data["weak_topics"]:
                 st.write("**Areas to improve:**")

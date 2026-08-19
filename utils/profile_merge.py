@@ -226,6 +226,34 @@ def merge_quiz_sessions(in_memory: dict, on_disk: dict, *, limit: int = 20) -> N
     in_memory["session_count"] = len(memory_sessions)
 
 
+def merge_chat_history(in_memory: dict, on_disk: dict, *, limit: int = 100) -> None:
+    """Union durable chatbot exchanges while respecting explicit clears."""
+    reset_at = max(
+        str(in_memory.get("chat_history_reset_at", "")),
+        str(on_disk.get("chat_history_reset_at", "")),
+    )
+    memory_history = [
+        item for item in in_memory.get("chat_history", []) or []
+        if isinstance(item, dict) and str(item.get("timestamp", "")) > reset_at
+    ]
+    seen = {
+        str(item.get("id") or f"{item.get('timestamp')}|{item.get('user_message')}")
+        for item in memory_history
+    }
+    for item in on_disk.get("chat_history", []) or []:
+        if not isinstance(item, dict) or str(item.get("timestamp", "")) <= reset_at:
+            continue
+        key = str(item.get("id") or f"{item.get('timestamp')}|{item.get('user_message')}")
+        if key in seen:
+            continue
+        seen.add(key)
+        memory_history.append(item)
+
+    memory_history.sort(key=lambda item: str(item.get("timestamp", "")))
+    in_memory["chat_history"] = memory_history[-limit:]
+    in_memory["chat_history_reset_at"] = reset_at
+
+
 # ---------------------------------------------------------------------------
 # Top-level merge
 # ---------------------------------------------------------------------------
@@ -252,6 +280,8 @@ def merge_profiles(in_memory: dict, on_disk: dict | None) -> dict:
         ``merge_resource_agent_state`` (on-disk side fed in if present).
       - ``quiz_sessions``: union-merged by report id so completed
         five-question evaluations are not lost across tabs.
+      - ``chat_history``: union-merged by exchange id, with explicit history
+        clears taking precedence over older entries.
       - ``quiz_history`` is then sorted by timestamp (string sort —
         chronological for a homogeneous tz-aware fleet, with the known
         caveat that legacy naive timestamps sort before tz-aware ones
@@ -288,6 +318,7 @@ def merge_profiles(in_memory: dict, on_disk: dict | None) -> dict:
         )
 
     merge_quiz_sessions(in_memory, on_disk)
+    merge_chat_history(in_memory, on_disk)
 
     disk_resource_state = on_disk.get("resource_agent_state")
     if disk_resource_state:
@@ -304,6 +335,7 @@ __all__ = [
     "ensure_course",
     "apply_entry_to_aggregates",
     "merge_quiz_sessions",
+    "merge_chat_history",
     "merge_resource_agent_state",
     "merge_profiles",
 ]

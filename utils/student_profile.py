@@ -16,6 +16,7 @@ from typing import Callable
 from filelock import FileLock, Timeout
 
 from config import LOCK_TIMEOUT_SECONDS as _LOCK_TIMEOUT_SECONDS
+from config import MAX_CHAT_HISTORY as _MAX_CHAT_HISTORY
 from config import MAX_QUIZ_HISTORY as _MAX_QUIZ_HISTORY
 from utils.profile_merge import (
     apply_entry_to_aggregates as _apply_entry_to_aggregates,
@@ -38,6 +39,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 # Module-level alias kept public because tests (and possibly external
 # callers) reference ``utils.student_profile.MAX_QUIZ_HISTORY``.
 MAX_QUIZ_HISTORY = _MAX_QUIZ_HISTORY
+MAX_CHAT_HISTORY = _MAX_CHAT_HISTORY
 
 # ---------------------------------------------------------------------------
 # Profile schema versioning
@@ -56,7 +58,9 @@ MAX_QUIZ_HISTORY = _MAX_QUIZ_HISTORY
 #   ``record_quiz_result``.
 # Version 2: ``quiz_sessions`` stores completed five-question session
 #   reports so evaluations remain visible after reload.
-CURRENT_SCHEMA_VERSION = 2
+# Version 3: ``chat_history`` stores durable user/assistant exchanges so the
+#   chatbot continues the conversation after a profile is reloaded.
+CURRENT_SCHEMA_VERSION = 3
 
 
 def migrate_profile(profile: dict) -> dict:
@@ -92,11 +96,15 @@ def migrate_profile(profile: dict) -> dict:
         profile["session_count"] = len(profile.get("quiz_sessions", []) or [])
         profile["schema_version"] = 2
 
+    if version < 3:
+        profile.setdefault("chat_history", [])
+        profile.setdefault("chat_history_reset_at", "")
+        profile["schema_version"] = 3
+
     profile.setdefault("quiz_sessions", [])
     profile.setdefault("session_count", len(profile.get("quiz_sessions", []) or []))
-
-    # Future migrations slot in here:
-    # if version < 3: ...
+    profile.setdefault("chat_history", [])
+    profile.setdefault("chat_history_reset_at", "")
 
     return profile
 
@@ -152,6 +160,8 @@ def create_profile(student_name: str, courses: list[dict],
         "courses": {},
         "quiz_history": [],
         "quiz_sessions": [],
+        "chat_history": [],
+        "chat_history_reset_at": "",
         "total_quizzes": 0,
         "session_count": 0,
         "spaced_repetition": {},   # SM-2 scheduler state
@@ -232,6 +242,8 @@ def save_profile(student_name: str, profile: dict) -> bool:
             # true lifetime counter, not len(quiz_history).
             if len(profile.get("quiz_history", [])) > MAX_QUIZ_HISTORY:
                 profile["quiz_history"] = profile["quiz_history"][-MAX_QUIZ_HISTORY:]
+            if len(profile.get("chat_history", [])) > MAX_CHAT_HISTORY:
+                profile["chat_history"] = profile["chat_history"][-MAX_CHAT_HISTORY:]
 
             # Serialize to string BEFORE opening the temp file so the JSON
             # encoding cost is not paid inside the fsync window. With 500
@@ -359,6 +371,8 @@ def record_quiz_result(profile: dict, course: str, topic: str,
                        difficulty: int, correct: bool, question: str, answer: str,
                        confidence: int = 3,
                        *,
+                       correct_answer: str | None = None,
+                       explanation: str | None = None,
                        now_fn: Callable[[], datetime] | None = None) -> dict:
     """
     Record the result of a single quiz question.
@@ -372,6 +386,8 @@ def record_quiz_result(profile: dict, course: str, topic: str,
         question: The question text
         answer: The student's answer
         confidence: Student's self-rated confidence 1-5
+        correct_answer: The answer key shown by the tutor
+        explanation: The explanation attached to the generated question
         now_fn: Optional clock callable returning a tz-aware datetime, used
                 for stamping the quiz_history entry's ``timestamp``. Defaults
                 to ``datetime.now(timezone.utc)``. Tests and the sample
@@ -418,7 +434,7 @@ def record_quiz_result(profile: dict, course: str, topic: str,
     # the save_profile merge can dedupe reliably even when two tabs
     # answer the same question at the same microsecond.
     now = (now_fn or (lambda: datetime.now(timezone.utc)))()
-    profile["quiz_history"].append({
+    history_entry = {
         "id": uuid.uuid4().hex,
         "timestamp": now.isoformat(),
         "course": course,
@@ -428,7 +444,12 @@ def record_quiz_result(profile: dict, course: str, topic: str,
         "question": question,
         "student_answer": answer,
         "confidence": confidence,
-    })
+    }
+    if correct_answer is not None:
+        history_entry["correct_answer"] = str(correct_answer)[:40]
+    if explanation is not None:
+        history_entry["explanation"] = str(explanation)[:4000]
+    profile["quiz_history"].append(history_entry)
 
     # CB-2: Sync total_quizzes deterministically from course-level stats
     # so it can never drift out of sync with the actual data.
@@ -436,6 +457,34 @@ def record_quiz_result(profile: dict, course: str, topic: str,
         c["total_attempted"] for c in profile["courses"].values()
     )
 
+    return profile
+
+
+def record_chat_exchange(
+    profile: dict,
+    user_message: str,
+    assistant_response: str,
+    *,
+    now_fn: Callable[[], datetime] | None = None,
+) -> dict:
+    """Append one durable chatbot exchange to the student profile."""
+    now = (now_fn or (lambda: datetime.now(timezone.utc)))()
+    history = profile.setdefault("chat_history", [])
+    history.append({
+        "id": uuid.uuid4().hex,
+        "timestamp": now.isoformat(),
+        "user_message": str(user_message)[:8000],
+        "assistant_response": str(assistant_response)[:12000],
+    })
+    if len(history) > MAX_CHAT_HISTORY:
+        del history[:-MAX_CHAT_HISTORY]
+    return profile
+
+
+def clear_chat_history(profile: dict) -> dict:
+    """Clear durable chatbot memory without allowing an older tab to restore it."""
+    profile["chat_history"] = []
+    profile["chat_history_reset_at"] = datetime.now(timezone.utc).isoformat()
     return profile
 
 
@@ -580,6 +629,36 @@ def get_weakest_topics(profile: dict, course: str, top_n: int = 3) -> list[dict]
     return topic_stats[:top_n]
 
 
+def get_strongest_topics(profile: dict, course: str, top_n: int = 3) -> list[dict]:
+    """Return practiced topics with at least 80% accuracy, strongest first."""
+    if course not in profile.get("courses", {}):
+        return []
+
+    topic_stats = []
+    for topic_name, stats in profile["courses"][course].get("topics", {}).items():
+        attempted = int(stats.get("attempted", 0) or 0)
+        if attempted <= 0:
+            continue
+        correct = int(stats.get("correct", 0) or 0)
+        accuracy = correct / attempted
+        if accuracy < 0.8:
+            continue
+        topic_stats.append({
+            "topic": topic_name,
+            "accuracy": accuracy,
+            "attempted": attempted,
+        })
+
+    topic_stats.sort(
+        key=lambda item: (
+            -item["accuracy"],
+            -item["attempted"],
+            item["topic"],
+        )
+    )
+    return topic_stats[:top_n]
+
+
 def get_performance_summary(profile: dict) -> dict:
     """Get an overall performance summary for the student."""
     summary = {
@@ -602,6 +681,7 @@ def get_performance_summary(profile: dict) -> dict:
                 if int(stats.get("attempted", 0) or 0) > 0
             ),
             "weak_topics": get_weakest_topics(profile, course_name),
+            "strong_topics": get_strongest_topics(profile, course_name),
         }
 
     return summary

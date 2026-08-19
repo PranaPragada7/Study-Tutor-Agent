@@ -49,7 +49,6 @@ MIN_PYTHON = (3, 10)
 
 # Modules that must import for the app + agents to run.
 REQUIRED_MODULES = ("streamlit", "anthropic", "dotenv", "filelock")
-OFFLINE_REQUIRED_MODULES = ("streamlit", "dotenv", "filelock")
 
 
 # ---------------------------------------------------------------------------
@@ -112,19 +111,6 @@ def check_imports(modules: tuple[str, ...] = REQUIRED_MODULES) -> CheckResult:
     )
 
 
-def _offline_mode_enabled(env_path: Path = ENV_PATH) -> bool:
-    raw = os.environ.get("STUDY_TUTOR_OFFLINE_MODE", "").strip()
-    if raw:
-        return raw.lower() in {"1", "true", "yes", "on"}
-    try:
-        from dotenv import dotenv_values  # type: ignore[import-not-found]
-        if env_path.exists():
-            raw = str(dotenv_values(env_path).get("STUDY_TUTOR_OFFLINE_MODE", "") or "").strip()
-    except ImportError:
-        pass
-    return raw.lower() in {"1", "true", "yes", "on"}
-
-
 def check_env_file_exists(path: Path = ENV_PATH) -> CheckResult:
     if not path.exists():
         return CheckResult(
@@ -145,13 +131,6 @@ def check_api_key(env_path: Path = ENV_PATH) -> CheckResult:
 
     NEVER prints the key value itself.
     """
-    if _offline_mode_enabled(env_path):
-        return CheckResult(
-            name="ANTHROPIC_API_KEY",
-            ok=True,
-            detail="skipped because STUDY_TUTOR_OFFLINE_MODE=1",
-        )
-
     # Prefer a real shell-provided key over .env. This matches app
     # startup (`load_dotenv(..., override=False)`) and avoids a common
     # Common setup trap: .env still contains the template placeholder, but the
@@ -292,23 +271,14 @@ def run_all_checks(auto_regenerate: bool = True) -> list[CheckResult]:
     """Run every preflight check in order. Returns the result list."""
     results: list[CheckResult] = []
     results.append(check_python_version())
-    offline = _offline_mode_enabled(ENV_PATH)
     shell_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     valid_shell_key = (
         shell_key not in PLACEHOLDER_KEYS
         and shell_key.startswith("sk-")
         and len(shell_key) > 30
     )
-    results.append(check_imports(OFFLINE_REQUIRED_MODULES if offline else REQUIRED_MODULES))
-    if offline:
-        results.append(
-            CheckResult(
-                name=".env file",
-                ok=True,
-                detail="optional in offline mode",
-            )
-        )
-    elif valid_shell_key:
+    results.append(check_imports(REQUIRED_MODULES))
+    if valid_shell_key:
         results.append(
             CheckResult(
                 name=".env file",

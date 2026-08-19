@@ -38,20 +38,20 @@ def _temp_data_dir():
     sp.DATA_DIR = original
 
 
-def test_explicit_none_client_forces_offline_mode(monkeypatch):
-    """A configured API key must not override the app's offline selection."""
+def test_explicit_none_client_disables_external_calls(monkeypatch):
+    """Deterministic tests can explicitly disable external model calls."""
     fake_client = object()
     monkeypatch.setattr("agents.tutor_agent.get_default_client", lambda: fake_client)
     monkeypatch.setattr("agents.resource_agent.get_default_client", lambda: fake_client)
 
-    profile = create_profile("Offline Student", [{"name": "Biology"}])
+    profile = create_profile("Deterministic Student", [{"name": "Biology"}])
     bus = MessageBus()
     tutor = TutorAgent(profile, message_bus=bus, client=None)
     resource = ResourceAgent(bus, client=None)
 
     assert tutor.client is None
     assert resource.client is None
-    assert "offline mode" in tutor.chat("What should I review?").lower()
+    assert "claude is unavailable" in tutor.chat("What should I review?").lower()
 
 
 class TestBasicCommunication:

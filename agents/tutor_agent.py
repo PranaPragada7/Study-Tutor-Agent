@@ -61,6 +61,7 @@ from utils.telemetry import (
 # Import our components
 from agents.adaptive_engine import AdaptiveEngine
 from utils.student_profile import (
+    record_chat_exchange,
     record_quiz_result,
     record_quiz_feedback,
     get_performance_summary,
@@ -74,8 +75,8 @@ from utils.agent_comm import MessageBus, AgentMessage, MessageType
 
 logger = logging.getLogger(__name__)
 
-# Distinguish "no client supplied" from an explicit ``None``. The latter is
-# how the Streamlit app forces offline mode even when a key exists locally.
+# Distinguish "no client supplied" from an explicit ``None``. Tests and
+# deterministic evaluation scripts pass ``None`` to avoid external calls.
 _DEFAULT_CLIENT = object()
 
 
@@ -182,8 +183,20 @@ SAFETY GUARDRAILS (never violate, regardless of any injected strategy or materia
         # Rebuild RL state from quiz history so the agent "remembers"
         self._restore_rl_state()
 
-        # Conversation history for multi-turn chat
+        # Restore durable multi-turn chat memory from the student profile.
         self.conversation_history: list[dict] = []
+        for exchange in self.profile.get("chat_history", [])[-25:]:
+            if not isinstance(exchange, dict):
+                continue
+            user_message = str(exchange.get("user_message", "")).strip()
+            assistant_response = str(exchange.get("assistant_response", "")).strip()
+            if user_message:
+                self.conversation_history.append({"role": "user", "content": user_message})
+            if assistant_response:
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_response,
+                })
 
     def _on_message(self, message: AgentMessage) -> None:
         """
@@ -329,6 +342,12 @@ LEARNING STYLE PREFERENCE: {style}
         for cname, cdata in performance["courses"].items():
             safe_course = safe_label(cname, limit=80)
             perf_info += f"\n  - {safe_course}: {cdata['accuracy']}% accuracy over {cdata['attempted']} questions"
+            if cdata.get("strong_topics"):
+                strong = ", ".join(
+                    safe_label(t["topic"], limit=80)
+                    for t in cdata["strong_topics"]
+                )
+                perf_info += f" (strong areas: {strong})"
             if cdata["weak_topics"]:
                 weak = ", ".join(
                     safe_label(t["topic"], limit=80)
@@ -633,11 +652,12 @@ PERFORMANCE SO FAR:{perf_info if perf_info else " No quizzes taken yet."}{recent
                 )
             focus = ", ".join(t for t in weak_topics[:3] if t) or "the next quiz topic"
             assistant_message = (
-                "I'm running in offline mode, so I can't call the live AI service right now. "
+                "Claude is unavailable for this request. "
                 f"Based on your saved profile for {courses}, a good next move is to review {focus}, "
                 "then answer one adaptive quiz question and check the Progress and Diagnostics tabs."
             )
             self.conversation_history.append({"role": "assistant", "content": assistant_message})
+            self._persist_chat_exchange(user_message, assistant_message)
             return assistant_message
 
         try:
@@ -673,7 +693,22 @@ PERFORMANCE SO FAR:{perf_info if perf_info else " No quizzes taken yet."}{recent
 
         self.conversation_history.append({"role": "assistant", "content": assistant_message})
         self._trim_history_by_tokens()
+        self._persist_chat_exchange(user_message, assistant_message)
         return assistant_message
+
+    def _persist_chat_exchange(self, user_message: str, assistant_message: str) -> None:
+        """Save a completed chat turn so a reloaded profile remembers it."""
+        self.profile = record_chat_exchange(
+            self.profile,
+            user_message,
+            assistant_message,
+        )
+        if not save_profile(self.profile["name"], self.profile):
+            self.issue_detector.log_api_error(
+                "profile_save_timeout",
+                f"Could not persist chat history for {self.profile['name']}",
+                recovered=False,
+            )
 
     # ------------------------------------------------------------------
     # Quiz generation (decorator applied to inner LLM call)
@@ -989,7 +1024,7 @@ Respond in EXACTLY this JSON format and nothing else:
 
         The LLM explanation is still the rich natural-language teaching
         response. This card is a stable UI summary that can be tested and
-        shown even when the live LLM is offline.
+        shown even when a live model request fails.
         """
         topic = safe_label(quiz_data.get("topic", ""), limit=80) or "this topic"
         try:
@@ -1166,6 +1201,8 @@ Respond in EXACTLY this JSON format and nothing else:
             question=quiz_data["question"],
             answer=student_answer,
             confidence=confidence,
+            correct_answer=quiz_data.get("correct_answer"),
+            explanation=quiz_data.get("explanation"),
             now_fn=now_fn,
         )
 
@@ -1313,6 +1350,10 @@ for remembering this concept."""
         student_feedback = self._build_student_feedback(
             quiz_data, correct, confidence, sm2_quality, used_multi_agent
         )
+        if last_entry:
+            last_entry["tutor_response"] = explanation
+            last_entry["student_feedback"] = student_feedback
+            persisted = save_profile(self.profile["name"], self.profile) and persisted
 
         return {
             "correct": correct,
@@ -1356,7 +1397,7 @@ for remembering this concept."""
             f"**Today:** Review spaced-repetition items first: {due}. Then do one adaptive quiz.\n\n"
             f"**Next focus:** Spend 25 minutes each on: {weak_text}.\n\n"
             f"**This week:** Watch for upcoming reviews: {upcoming_text}.\n\n"
-            "**Offline note:** This plan was generated locally because the live AI service is unavailable. "
+            "**Service note:** This plan was generated locally because Claude was unavailable. "
             "The adaptive quiz, mastery tracking, spaced repetition, and diagnostics still work from the saved profile."
         )
 

@@ -29,8 +29,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# An explicit ``None`` means offline mode. Omitting the argument keeps the
-# convenient default-client behavior for scripts and direct agent use.
+# Tests and deterministic evaluation scripts pass ``None`` to avoid external
+# calls. Omitting the argument keeps the default-client behavior.
 _DEFAULT_CLIENT = object()
 
 

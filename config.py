@@ -124,6 +124,10 @@ LOCK_TIMEOUT_SECONDS: int = _env_int("STUDY_TUTOR_LOCK_TIMEOUT_SECONDS", 10)
 # thousands of answers. ``total_quizzes`` remains the lifetime counter.
 MAX_QUIZ_HISTORY: int = _env_int("STUDY_TUTOR_MAX_QUIZ_HISTORY", 500)
 
+# Keep enough durable chat context to support continuity without allowing a
+# long-running profile to grow forever. Each item is one user/assistant pair.
+MAX_CHAT_HISTORY: int = _env_int("STUDY_TUTOR_MAX_CHAT_HISTORY", 100)
+
 
 # ---------------------------------------------------------------------------
 # IssueDetector caps  (consumed by utils/issue_detector.py)
@@ -164,12 +168,6 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 QUIZ_VERIFIER_ENABLED: bool = _env_bool("STUDY_TUTOR_QUIZ_VERIFIER_ENABLED", True)
-
-# Live runs should degrade gracefully if the API key, network, or SDK is
-# unavailable. When enabled, the Streamlit app skips Anthropic client
-# construction and uses local fallback quiz/feedback/plan paths.
-OFFLINE_MODE: bool = _env_bool("STUDY_TUTOR_OFFLINE_MODE", False)
-
 
 # ---------------------------------------------------------------------------
 # Resource Agent blocking / latency  (consumed by agents/resource_agent.py)
@@ -230,6 +228,7 @@ __all__ = [
     "MAX_DISPATCH_DEPTH",
     "LOCK_TIMEOUT_SECONDS",
     "MAX_QUIZ_HISTORY",
+    "MAX_CHAT_HISTORY",
     "MAX_ISSUES",
     "MAX_API_ERRORS",
     "STALLED_WINDOW_SIZE",
@@ -239,7 +238,6 @@ __all__ = [
     "MAX_EASINESS_FACTOR",
     "DAILY_REVIEW_CAP",
     "QUIZ_VERIFIER_ENABLED",
-    "OFFLINE_MODE",
     "RESOURCE_AGENT_EAGER_TARGETED_EXPLANATION",
     "snapshot",
 ]

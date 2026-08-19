@@ -6,8 +6,8 @@ it to generate one quiz question for ``Intro to CS``. The profile is
 NOT saved back to disk — quiz_history is left untouched so the live
 run starts from a clean slate.
 
-The script reports whether a real Anthropic call succeeded or whether
-the fallback path was taken. It NEVER prints the API key.
+The script reports whether a real Anthropic call succeeded. It NEVER prints
+the API key.
 
 Usage
 -----
@@ -15,8 +15,8 @@ Usage
 
 Exit codes
 ----------
-    0  question generated (real LLM call OR fallback) — app is reachable
-    1  unrecoverable error (profile missing, agent failed to construct, etc.)
+    0  real Claude question generated
+    1  live Claude validation failed
 """
 from __future__ import annotations
 
@@ -109,11 +109,9 @@ def warmup() -> int:
     difficulty = quiz.get("difficulty", "?")
 
     if fallback:
-        print(f"⚠️  Fallback path used. topic={topic} difficulty={difficulty}")
-        print("   This means the LLM call did not succeed; the canned")
-        print("   item bank produced the question. Check network and key.")
-        # Still exit 0 — the app is reachable, just degraded.
-        return 0
+        print(f"❌ Live Claude call failed. topic={topic} difficulty={difficulty}")
+        print("   Check the API key, account access, and network connection.")
+        return 1
 
     print(f"✅ Real LLM question generated. topic={topic} difficulty={difficulty}")
     print("   Profile was NOT saved; quiz_history untouched.")

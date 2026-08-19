@@ -5,19 +5,18 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-app-e4573d?logo=streamlit&logoColor=white)
 ![Claude](https://img.shields.io/badge/Claude-powered-f2b84b)
 
-Study Tutor is a local adaptive-learning workspace built with Streamlit and Claude. It combines personalized tutoring, five-question practice sessions, spaced repetition, progress tracking, and a collaborating Resource Agent in one application.
-
-The app also includes a fully offline fallback, so the interface and core learning flow remain demonstrable without an API key or network connection.
+Study Tutor is an adaptive-learning chatbot built with Streamlit and Claude. It combines personalized tutoring, five-question practice sessions, spaced repetition, durable student memory, progress tracking, and a collaborating Resource Agent in one application.
 
 ## What it does
 
-- Keeps separate local profiles for students, courses, learning preferences, and quiz history.
+- Keeps separate local profiles for courses, learning preferences, quiz history, and chatbot conversations.
 - Selects topics and difficulty with an epsilon-greedy adaptive engine.
 - Runs focused five-question sessions with confidence-aware feedback.
 - Schedules review using the SM-2 spaced-repetition algorithm.
 - Generates profile-aware explanations, quizzes, resources, and study plans with Claude.
 - Coordinates a Tutor Agent and Resource Agent through an internal message bus.
-- Surfaces mastery, weak topics, review dates, session reports, and diagnostic telemetry.
+- Remembers strong topics, weak topics, answers, confidence, tutor feedback, and completed conversations across restarts.
+- Surfaces mastery, review dates, session reports, and diagnostic telemetry.
 - Protects local state with atomic writes, file locks, schema migration, and bounded history.
 
 ## How it works
@@ -31,10 +30,10 @@ flowchart LR
     MB <--> RA[Resource Agent]
     TA --> LLM[Claude API]
     RA --> LLM
-    TA <--> P[(Local JSON profiles)]
+    TA <--> P[(Durable student memory)]
 ```
 
-The Tutor Agent owns the student-facing flow. It reads the profile, chooses an appropriate practice target, records the result, and updates the review schedule. When a student needs more support, it asks the Resource Agent for targeted material through the message bus. In offline mode, deterministic local fallbacks replace the external model calls.
+The Tutor Agent owns the student-facing flow. It reads the saved profile, restores prior conversations, supplies Claude with current strengths and weaknesses, records every quiz response, and updates the review schedule. When a student needs more support, it asks the Resource Agent for targeted material through the message bus.
 
 ## Run locally
 
@@ -49,18 +48,7 @@ py -3.11 -m venv .venv
 python -m pip install -r requirements-dev.txt
 ```
 
-### Offline demo
-
-No secret file is required.
-
-```powershell
-$env:STUDY_TUTOR_OFFLINE_MODE="1"
-python -m streamlit run app.py
-```
-
-### Live Claude mode
-
-Create a local environment file and add an Anthropic API key:
+Create a local environment file and add a valid Anthropic API key. The live Claude assistant is required:
 
 ```powershell
 Copy-Item .env.example .env
@@ -73,7 +61,6 @@ The app opens at [http://localhost:8501](http://localhost:8501). Use **Load Samp
 ## Validate the project
 
 ```powershell
-$env:STUDY_TUTOR_OFFLINE_MODE="1"
 python scripts/preflight_check.py
 python -m pytest -q
 ```
@@ -86,7 +73,7 @@ python scripts/live_flow_check.py
 python scripts/warmup_check.py
 ```
 
-The pytest suite does not make live Anthropic requests. GitHub Actions runs the offline preflight and complete test suite for every pull request.
+The pytest suite does not make live Anthropic requests. GitHub Actions runs the complete test suite for every pull request. `warmup_check.py` is the explicit live-Claude validation.
 
 ## Project structure
 
@@ -110,6 +97,6 @@ data/                  Sample profile; personal profiles stay untracked
 
 ## Data and security
 
-Student profiles are stored locally as JSON files in `data/`. Personal profiles, `.env`, Streamlit secrets, virtual environments, caches, and lock files are excluded from Git.
+Student profiles are stored locally as JSON files in `data/`. Each profile includes quiz answers, answer keys, explanations, tutor responses, confidence signals, strong and weak topics, spaced-review state, session reports, and bounded chatbot history. Personal profiles, `.env`, Streamlit secrets, virtual environments, caches, and lock files are excluded from Git.
 
 Only placeholder values belong in `.env.example` and `.streamlit/secrets.toml.example`. If a real API key is ever shared or committed, revoke it in the Anthropic Console and create a new one.

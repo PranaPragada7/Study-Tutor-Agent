@@ -12,7 +12,7 @@ Why this module exists
 - **Single place to try-import the anthropic SDK.** Both agents used to
   carry duplicated ``try/except ImportError`` blocks with stub exception
   classes so that ``except`` clauses still parsed when the SDK was not
-  installed (CI without the dep, or local dev offline). Those are
+  installed (for example, a minimal test environment). Those are
   consolidated here and re-exported.
 
 - **Default client factory for non-Streamlit callers.** ``app.py`` already

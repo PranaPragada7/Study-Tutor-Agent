@@ -222,6 +222,37 @@ def test_run_all_checks_does_not_call_network(monkeypatch, tmp_path):
     assert "Sample profile" in names
 
 
+def test_offline_preflight_does_not_require_env_file(monkeypatch, tmp_path):
+    """Offline mode should be runnable from a fresh clone without secrets."""
+    sample = tmp_path / "sample_student.json"
+    sample.write_text(json.dumps({"name": "Sample Student"}), encoding="utf-8")
+
+    monkeypatch.setattr(pf, "ENV_PATH", tmp_path / ".env")
+    monkeypatch.setattr(pf, "SAMPLE_PROFILE_PATH", sample)
+    monkeypatch.setenv("STUDY_TUTOR_OFFLINE_MODE", "1")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    results = pf.run_all_checks(auto_regenerate=False)
+    assert all(result.ok for result in results), pf.render_report(results)
+    env_result = next(result for result in results if result.name == ".env file")
+    assert "optional" in env_result.detail
+
+
+def test_shell_api_key_does_not_require_env_file(monkeypatch, tmp_path):
+    """A securely exported key should make a separate .env file optional."""
+    sample = tmp_path / "sample_student.json"
+    sample.write_text(json.dumps({"name": "Sample Student"}), encoding="utf-8")
+
+    monkeypatch.setattr(pf, "ENV_PATH", tmp_path / ".env")
+    monkeypatch.setattr(pf, "SAMPLE_PROFILE_PATH", sample)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-" + "k" * 80)
+
+    results = pf.run_all_checks(auto_regenerate=False)
+    assert all(result.ok for result in results), pf.render_report(results)
+    env_result = next(result for result in results if result.name == ".env file")
+    assert "environment" in env_result.detail
+
+
 def test_render_report_marks_failures(monkeypatch, tmp_path):
     monkeypatch.setattr(pf, "ENV_PATH", tmp_path / ".env")
     monkeypatch.setattr(pf, "SAMPLE_PROFILE_PATH", tmp_path / "sample_student.json")

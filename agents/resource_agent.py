@@ -29,6 +29,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# An explicit ``None`` means offline mode. Omitting the argument keeps the
+# convenient default-client behavior for scripts and direct agent use.
+_DEFAULT_CLIENT = object()
+
 
 def _kb_key(topic: str) -> str:
     """Canonicalise knowledge-base keys via the shared helper.
@@ -104,17 +108,22 @@ class ResourceAgent:
     # least-requested topics are evicted.
     _MAX_KNOWLEDGE_BASE_SIZE = MAX_KNOWLEDGE_BASE_SIZE
 
-    def __init__(self, message_bus: MessageBus, client: "Anthropic | None" = None):
+    def __init__(
+        self,
+        message_bus: MessageBus,
+        client: "Anthropic | None | object" = _DEFAULT_CLIENT,
+    ):
         """
         Args:
             message_bus: Shared MessageBus instance.
             client: Optional pre-built Anthropic client to share with
-                    the Tutor Agent (one HTTPX pool per Streamlit process
-                    instead of one per agent). If omitted, the agent
-                    constructs its own.
+                    the Tutor Agent. If omitted, the agent constructs its
+                    own. Pass ``None`` explicitly to force local fallbacks.
         """
         self.bus = message_bus
-        self.client = client if client is not None else get_default_client()
+        self.client = (
+            get_default_client() if client is _DEFAULT_CLIENT else client
+        )
 
         # Knowledge base: grows as topics are researched.
         # Keyed by `_kb_key(topic)` (lowercased) so case variants collapse

@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from utils.agent_comm import MessageBus, AgentMessage, MessageType
 from agents.resource_agent import ResourceAgent
+from agents.tutor_agent import TutorAgent
 from utils.student_profile import create_profile, record_quiz_result
 
 
@@ -35,6 +36,22 @@ def _temp_data_dir():
     sp.DATA_DIR = tempfile.mkdtemp()
     yield
     sp.DATA_DIR = original
+
+
+def test_explicit_none_client_forces_offline_mode(monkeypatch):
+    """A configured API key must not override the app's offline selection."""
+    fake_client = object()
+    monkeypatch.setattr("agents.tutor_agent.get_default_client", lambda: fake_client)
+    monkeypatch.setattr("agents.resource_agent.get_default_client", lambda: fake_client)
+
+    profile = create_profile("Offline Student", [{"name": "Biology"}])
+    bus = MessageBus()
+    tutor = TutorAgent(profile, message_bus=bus, client=None)
+    resource = ResourceAgent(bus, client=None)
+
+    assert tutor.client is None
+    assert resource.client is None
+    assert "offline mode" in tutor.chat("What should I review?").lower()
 
 
 class TestBasicCommunication:

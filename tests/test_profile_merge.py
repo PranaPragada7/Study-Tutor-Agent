@@ -18,11 +18,8 @@ import tempfile
 import threading
 import uuid
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utils import profile_merge
 from utils.profile_merge import (
     apply_entry_to_aggregates,
     ensure_course,
@@ -37,13 +34,12 @@ from utils.student_profile import (
     save_profile,
 )
 
-
 # ═══════════════════════════════════════════════
 # entry_key: UUID + legacy fallback
 # ═══════════════════════════════════════════════
 
-class TestEntryKey:
 
+class TestEntryKey:
     def test_uuid_id_takes_priority(self):
         e = {"id": "abc123", "timestamp": "t", "question": "q"}
         assert entry_key(e) == "id:abc123"
@@ -68,17 +64,22 @@ class TestEntryKey:
 # apply_entry_to_aggregates
 # ═══════════════════════════════════════════════
 
-class TestApplyEntryToAggregates:
 
+class TestApplyEntryToAggregates:
     def _empty_profile(self) -> dict:
         return {"courses": {}}
 
     def test_creates_missing_course(self):
         profile = self._empty_profile()
-        apply_entry_to_aggregates(profile, {
-            "course": "CS101", "topic": "Loops",
-            "difficulty": 2, "correct": True,
-        })
+        apply_entry_to_aggregates(
+            profile,
+            {
+                "course": "CS101",
+                "topic": "Loops",
+                "difficulty": 2,
+                "correct": True,
+            },
+        )
         assert "CS101" in profile["courses"]
         assert profile["courses"]["CS101"]["total_attempted"] == 1
         assert profile["courses"]["CS101"]["total_correct"] == 1
@@ -86,10 +87,15 @@ class TestApplyEntryToAggregates:
     def test_increments_topic_stats(self):
         profile = self._empty_profile()
         for correct in (True, True, False):
-            apply_entry_to_aggregates(profile, {
-                "course": "CS101", "topic": "Recursion",
-                "difficulty": 3, "correct": correct,
-            })
+            apply_entry_to_aggregates(
+                profile,
+                {
+                    "course": "CS101",
+                    "topic": "Recursion",
+                    "difficulty": 3,
+                    "correct": correct,
+                },
+            )
         topic = profile["courses"]["CS101"]["topics"]["Recursion"]
         assert topic["attempted"] == 3
         assert topic["correct"] == 2
@@ -102,9 +108,14 @@ class TestApplyEntryToAggregates:
 
     def test_missing_topic_updates_only_course(self):
         profile = self._empty_profile()
-        apply_entry_to_aggregates(profile, {
-            "course": "CS101", "correct": True, "difficulty": 2,
-        })
+        apply_entry_to_aggregates(
+            profile,
+            {
+                "course": "CS101",
+                "correct": True,
+                "difficulty": 2,
+            },
+        )
         assert profile["courses"]["CS101"]["total_attempted"] == 1
         assert profile["courses"]["CS101"]["topics"] == {}
 
@@ -112,19 +123,27 @@ class TestApplyEntryToAggregates:
         """Disk entries can be older than the in-memory state. We must
         not overwrite a freshly-set ``current_difficulty`` with a stale
         one from disk."""
-        profile = {"courses": {
-            "CS101": {
-                "exam_date": "", "self_rated_difficulty": 3,
-                "total_attempted": 0, "total_correct": 0,
-                "topics": {"Loops": {"correct": 0, "attempted": 0,
-                                     "current_difficulty": 5}},
+        profile = {
+            "courses": {
+                "CS101": {
+                    "exam_date": "",
+                    "self_rated_difficulty": 3,
+                    "total_attempted": 0,
+                    "total_correct": 0,
+                    "topics": {"Loops": {"correct": 0, "attempted": 0, "current_difficulty": 5}},
+                }
             }
-        }}
+        }
         # Replay an old-disk entry with difficulty=1
-        apply_entry_to_aggregates(profile, {
-            "course": "CS101", "topic": "Loops",
-            "difficulty": 1, "correct": True,
-        })
+        apply_entry_to_aggregates(
+            profile,
+            {
+                "course": "CS101",
+                "topic": "Loops",
+                "difficulty": 1,
+                "correct": True,
+            },
+        )
         # The freshly-set 5 must survive.
         assert profile["courses"]["CS101"]["topics"]["Loops"]["current_difficulty"] == 5
 
@@ -133,8 +152,8 @@ class TestApplyEntryToAggregates:
 # ensure_course
 # ═══════════════════════════════════════════════
 
-class TestEnsureCourse:
 
+class TestEnsureCourse:
     def test_creates_with_defaults(self):
         profile: dict = {}
         c = ensure_course(profile, "CS101")
@@ -143,10 +162,17 @@ class TestEnsureCourse:
         assert c["topics"] == {}
 
     def test_idempotent(self):
-        profile = {"courses": {"CS101": {"total_attempted": 5,
-                                          "total_correct": 3,
-                                          "topics": {}, "exam_date": "",
-                                          "self_rated_difficulty": 4}}}
+        profile = {
+            "courses": {
+                "CS101": {
+                    "total_attempted": 5,
+                    "total_correct": 3,
+                    "topics": {},
+                    "exam_date": "",
+                    "self_rated_difficulty": 4,
+                }
+            }
+        }
         c = ensure_course(profile, "CS101")
         # Existing data must survive.
         assert c["total_attempted"] == 5
@@ -157,8 +183,8 @@ class TestEnsureCourse:
 # merge_resource_agent_state
 # ═══════════════════════════════════════════════
 
-class TestMergeResourceAgentState:
 
+class TestMergeResourceAgentState:
     def test_both_empty_returns_empty_dict(self):
         assert merge_resource_agent_state({}, {}) == {}
         assert merge_resource_agent_state(None, None) == {}  # type: ignore[arg-type]
@@ -169,19 +195,15 @@ class TestMergeResourceAgentState:
         assert merge_resource_agent_state({}, kb) is kb
 
     def test_kb_collision_keeps_higher_request_count(self):
-        in_mem = {"knowledge_base": {"loops": {"times_requested": 5,
-                                                "marker": "in_mem"}}}
-        on_disk = {"knowledge_base": {"loops": {"times_requested": 2,
-                                                 "marker": "on_disk"}}}
+        in_mem = {"knowledge_base": {"loops": {"times_requested": 5, "marker": "in_mem"}}}
+        on_disk = {"knowledge_base": {"loops": {"times_requested": 2, "marker": "on_disk"}}}
         merged = merge_resource_agent_state(in_mem, on_disk)
         assert merged["knowledge_base"]["loops"]["marker"] == "in_mem"
 
     def test_kb_collision_tie_favors_in_memory(self):
         # Tie on times_requested → in-memory (newer materials) wins.
-        in_mem = {"knowledge_base": {"loops": {"times_requested": 3,
-                                                "marker": "in_mem"}}}
-        on_disk = {"knowledge_base": {"loops": {"times_requested": 3,
-                                                 "marker": "on_disk"}}}
+        in_mem = {"knowledge_base": {"loops": {"times_requested": 3, "marker": "in_mem"}}}
+        on_disk = {"knowledge_base": {"loops": {"times_requested": 3, "marker": "on_disk"}}}
         merged = merge_resource_agent_state(in_mem, on_disk)
         assert merged["knowledge_base"]["loops"]["marker"] == "in_mem"
 
@@ -192,18 +214,15 @@ class TestMergeResourceAgentState:
         assert set(merged["knowledge_base"].keys()) == {"loops", "recursion"}
 
     def test_weakness_history_dedupe(self):
-        entry = {"topic": "Recursion", "course": "CS101",
-                 "accuracy": 0.4, "attempts": 3}
+        entry = {"topic": "Recursion", "course": "CS101", "accuracy": 0.4, "attempts": 3}
         in_mem = {"weakness_history": [entry]}
         on_disk = {"weakness_history": [dict(entry)]}  # exact duplicate
         merged = merge_resource_agent_state(in_mem, on_disk)
         assert len(merged["weakness_history"]) == 1
 
     def test_weakness_history_distinct_kept(self):
-        e1 = {"topic": "Recursion", "course": "CS101",
-              "accuracy": 0.4, "attempts": 3}
-        e2 = {"topic": "Loops", "course": "CS101",
-              "accuracy": 0.3, "attempts": 5}
+        e1 = {"topic": "Recursion", "course": "CS101", "accuracy": 0.4, "attempts": 3}
+        e2 = {"topic": "Loops", "course": "CS101", "accuracy": 0.3, "attempts": 5}
         merged = merge_resource_agent_state(
             {"weakness_history": [e1]},
             {"weakness_history": [e2]},
@@ -215,16 +234,18 @@ class TestMergeResourceAgentState:
 # merge_profiles
 # ═══════════════════════════════════════════════
 
-class TestMergeProfiles:
 
+class TestMergeProfiles:
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def test_no_disk_returns_in_memory_unchanged(self):
@@ -238,17 +259,21 @@ class TestMergeProfiles:
         tab B wrote entry Y, both starting from the same base. After the
         merge the in-memory state must contain BOTH entries with
         consistent aggregate counters."""
-        profile_a = create_profile("Disjoint", [
-            {"name": "CS101", "difficulty": 3},
-        ])
-        profile_a = record_quiz_result(profile_a, "CS101", "Loops", 2,
-                                       True, "Q-A", "A")
+        profile_a = create_profile(
+            "Disjoint",
+            [
+                {"name": "CS101", "difficulty": 3},
+            ],
+        )
+        profile_a = record_quiz_result(profile_a, "CS101", "Loops", 2, True, "Q-A", "A")
         # Disk version simulates Tab B's state: same base, different entry.
-        profile_b = create_profile("Disjoint", [
-            {"name": "CS101", "difficulty": 3},
-        ])
-        profile_b = record_quiz_result(profile_b, "CS101", "Recursion", 3,
-                                       False, "Q-B", "C")
+        profile_b = create_profile(
+            "Disjoint",
+            [
+                {"name": "CS101", "difficulty": 3},
+            ],
+        )
+        profile_b = record_quiz_result(profile_b, "CS101", "Recursion", 3, False, "Q-B", "C")
 
         # profile_a is "in memory" for the about-to-save tab; profile_b
         # is what was on disk written by the other tab.
@@ -269,8 +294,7 @@ class TestMergeProfiles:
         """A disk entry that already exists in memory (same UUID) must
         NOT be re-counted on aggregate replay."""
         profile = create_profile("Dedupe", [{"name": "CS101", "difficulty": 3}])
-        profile = record_quiz_result(profile, "CS101", "Loops", 2,
-                                     True, "Q1", "A")
+        profile = record_quiz_result(profile, "CS101", "Loops", 2, True, "Q1", "A")
         # Simulate disk state: an exact copy (same UUID id).
         on_disk = {
             "quiz_history": list(profile["quiz_history"]),
@@ -286,22 +310,34 @@ class TestMergeProfiles:
         ``(timestamp, question)`` keying."""
         legacy_entry = {
             "timestamp": "2025-01-01T00:00:00",
-            "course": "CS101", "topic": "Loops",
-            "difficulty": 2, "correct": True,
-            "question": "Legacy Q", "student_answer": "A",
+            "course": "CS101",
+            "topic": "Loops",
+            "difficulty": 2,
+            "correct": True,
+            "question": "Legacy Q",
+            "student_answer": "A",
             "confidence": 3,
         }
         # Both sides have the same legacy entry.
         in_memory = {
-            "name": "Legacy", "courses": {"CS101": {
-                "exam_date": "", "self_rated_difficulty": 3,
-                "topics": {}, "total_correct": 0, "total_attempted": 0,
-            }},
-            "quiz_history": [dict(legacy_entry)], "total_quizzes": 0,
+            "name": "Legacy",
+            "courses": {
+                "CS101": {
+                    "exam_date": "",
+                    "self_rated_difficulty": 3,
+                    "topics": {},
+                    "total_correct": 0,
+                    "total_attempted": 0,
+                }
+            },
+            "quiz_history": [dict(legacy_entry)],
+            "total_quizzes": 0,
         }
         on_disk = {
-            "name": "Legacy", "courses": {},
-            "quiz_history": [dict(legacy_entry)], "total_quizzes": 1,
+            "name": "Legacy",
+            "courses": {},
+            "quiz_history": [dict(legacy_entry)],
+            "total_quizzes": 1,
         }
         merge_profiles(in_memory, on_disk)
         # Dedup'd: only one history entry, no aggregate double-count.
@@ -338,16 +374,18 @@ class TestMergeProfiles:
 # Concurrency: save_profile under thread contention
 # ═══════════════════════════════════════════════
 
-class TestSaveProfileConcurrency:
 
+class TestSaveProfileConcurrency:
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def test_two_threads_disjoint_writes_union(self):
@@ -362,9 +400,12 @@ class TestSaveProfileConcurrency:
         replay would surface here as either lost data or doubled totals.
         """
         # Shared base profile on disk (both threads load this).
-        base = create_profile("Concurrent", [
-            {"name": "CS101", "difficulty": 3},
-        ])
+        create_profile(
+            "Concurrent",
+            [
+                {"name": "CS101", "difficulty": 3},
+            ],
+        )
         # base is already saved by create_profile.
 
         n_per_thread = 5
@@ -379,9 +420,13 @@ class TestSaveProfileConcurrency:
                 assert local is not None
                 for i in range(n_per_thread):
                     local = record_quiz_result(
-                        local, "CS101", f"T{label}", 2,
+                        local,
+                        "CS101",
+                        f"T{label}",
+                        2,
                         i % 2 == 0,
-                        f"Q-{label}-{i}", "A",
+                        f"Q-{label}-{i}",
+                        "A",
                     )
                 # Both threads block here, then race on save_profile.
                 barrier.wait(timeout=10)
@@ -394,8 +439,10 @@ class TestSaveProfileConcurrency:
 
         t1 = threading.Thread(target=worker, args=("A",))
         t2 = threading.Thread(target=worker, args=("B",))
-        t1.start(); t2.start()
-        t1.join(timeout=15); t2.join(timeout=15)
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
 
         assert not errors, f"Worker raised: {errors}"
 
@@ -403,8 +450,9 @@ class TestSaveProfileConcurrency:
         final = load_profile("Concurrent")
         assert final is not None
         # 2 threads × n_per_thread entries each, no dedupe loss.
-        assert len(final["quiz_history"]) == 2 * n_per_thread, \
-            f"expected {2*n_per_thread}, got {len(final['quiz_history'])}"
+        assert len(final["quiz_history"]) == 2 * n_per_thread, (
+            f"expected {2 * n_per_thread}, got {len(final['quiz_history'])}"
+        )
         # Aggregate totals match
         assert final["courses"]["CS101"]["total_attempted"] == 2 * n_per_thread
         # total_quizzes matches sum of course totals
@@ -417,8 +465,7 @@ class TestSaveProfileConcurrency:
         """Calling save_profile twice in a row with the same in-memory
         state must not double-count anything."""
         profile = create_profile("Idem", [{"name": "CS101", "difficulty": 3}])
-        profile = record_quiz_result(profile, "CS101", "Loops", 2,
-                                     True, "Q1", "A")
+        profile = record_quiz_result(profile, "CS101", "Loops", 2, True, "Q1", "A")
         save_profile("Idem", profile)
         save_profile("Idem", profile)  # second save with same state
         loaded = load_profile("Idem")

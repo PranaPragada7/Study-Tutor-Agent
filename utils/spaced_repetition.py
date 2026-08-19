@@ -28,7 +28,11 @@ from typing import Callable
 
 from config import (
     DAILY_REVIEW_CAP as _DAILY_REVIEW_CAP,
+)
+from config import (
     MAX_EASINESS_FACTOR as _MAX_EASINESS_FACTOR,
+)
+from config import (
     MAX_INTERVAL_DAYS as _MAX_INTERVAL_DAYS,
 )
 
@@ -141,8 +145,9 @@ class SpacedRepetitionScheduler:
 
         return sched
 
-    def get_due_topics(self, available_topics: list[str] | None = None,
-                       max_results: int = _DAILY_REVIEW_CAP) -> list[dict]:
+    def get_due_topics(
+        self, available_topics: list[str] | None = None, max_results: int = _DAILY_REVIEW_CAP
+    ) -> list[dict]:
         """
         Get topics that are due for review (next_review <= now).
 
@@ -190,22 +195,26 @@ class SpacedRepetitionScheduler:
                         reviewed_recently = (now - lr).total_seconds() < 86400
                     except (ValueError, TypeError):
                         reviewed_recently = False
-                due.append({
-                    "topic": topic,
-                    "days_overdue": round(days_overdue, 1),
-                    "easiness": round(sched.get("easiness_factor", 2.5), 2),
-                    "interval_days": sched.get("interval_days", 0),
-                    "_reviewed_recently": reviewed_recently,
-                })
+                due.append(
+                    {
+                        "topic": topic,
+                        "days_overdue": round(days_overdue, 1),
+                        "easiness": round(sched.get("easiness_factor", 2.5), 2),
+                        "interval_days": sched.get("interval_days", 0),
+                        "_reviewed_recently": reviewed_recently,
+                    }
+                )
 
         # Primary: topics NOT reviewed in the last 24h come first (False <
         # True under tuple sort, so we flip with an int). Within each
         # group: most-overdue first, then lowest easiness (hardest).
-        due.sort(key=lambda x: (
-            1 if x["_reviewed_recently"] else 0,
-            -x["days_overdue"],
-            x["easiness"],
-        ))
+        due.sort(
+            key=lambda x: (
+                1 if x["_reviewed_recently"] else 0,
+                -x["days_overdue"],
+                x["easiness"],
+            )
+        )
         # Strip the internal sort-only field before returning.
         for d in due:
             d.pop("_reviewed_recently", None)
@@ -231,11 +240,13 @@ class SpacedRepetitionScheduler:
                 continue
             if now < next_review <= cutoff:
                 days_until = (next_review - now).total_seconds() / 86400
-                upcoming.append({
-                    "topic": topic,
-                    "days_until_review": round(days_until, 1),
-                    "interval_days": sched.get("interval_days", 0),
-                })
+                upcoming.append(
+                    {
+                        "topic": topic,
+                        "days_until_review": round(days_until, 1),
+                        "interval_days": sched.get("interval_days", 0),
+                    }
+                )
 
         upcoming.sort(key=lambda x: x["days_until_review"])
         return upcoming

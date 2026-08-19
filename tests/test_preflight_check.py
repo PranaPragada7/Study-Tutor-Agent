@@ -8,11 +8,11 @@ naturally satisfied; the tests below additionally use monkeypatch to
 isolate the filesystem and environment so each check can be exercised
 independently.
 """
+
 from __future__ import annotations
 
 import importlib
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -103,9 +103,7 @@ def test_api_key_short_string_rejected(tmp_path, monkeypatch):
 
 def test_api_key_well_formed_passes(tmp_path, monkeypatch):
     # 40+ chars and starts with sk-: shape check passes.
-    monkeypatch.setenv(
-        "ANTHROPIC_API_KEY", "sk-ant-api03-" + "x" * 80
-    )
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-" + "x" * 80)
     result = pf.check_api_key(env_path=tmp_path / "nope.env")
     assert result.ok
     # Key value must not appear in either field.

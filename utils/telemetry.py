@@ -41,7 +41,6 @@ from __future__ import annotations
 import threading
 from typing import Iterable
 
-
 # Canonical counter names. Centralised here so we have one place to
 # look when adding a new instrumentation point — a string typo at the
 # call site would otherwise create a phantom counter that the

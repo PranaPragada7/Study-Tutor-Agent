@@ -25,9 +25,7 @@ def _session_item_parts(item: dict) -> tuple[dict, dict, int, str]:
     result = item.get("result", item) if isinstance(item, dict) else {}
     quiz = item.get("quiz", {}) if isinstance(item, dict) else {}
     confidence = _coerce_confidence(
-        item.get("confidence", result.get("confidence", 3))
-        if isinstance(item, dict)
-        else 3
+        item.get("confidence", result.get("confidence", 3)) if isinstance(item, dict) else 3
     )
     topic = (
         quiz.get("topic")
@@ -192,10 +190,11 @@ def build_quiz_session_report(
         correct = bool(result.get("correct"))
         difficulty = quiz.get("difficulty", result.get("difficulty", "?"))
         student_answer = (
-            item.get("student_answer")
-            if isinstance(item, dict)
-            else None
-        ) or quiz.get("answer") or result.get("student_answer") or "not shown"
+            (item.get("student_answer") if isinstance(item, dict) else None)
+            or quiz.get("answer")
+            or result.get("student_answer")
+            or "not shown"
+        )
         correct_answer = result.get("correct_answer") or quiz.get("correct_answer") or "?"
         question = quiz.get("question") or result.get("question") or ""
         quiz_id = result.get("quiz_id") or quiz.get("quiz_id") or quiz.get("id") or ""
@@ -222,32 +221,30 @@ def build_quiz_session_report(
             signal = "Needs review"
             next_action = "Read the explanation and retry at the same difficulty."
 
-        explanation = str(
-            result.get("explanation")
-            or quiz.get("explanation")
-            or ""
-        ).strip()
+        explanation = str(result.get("explanation") or quiz.get("explanation") or "").strip()
 
-        rows.append({
-            "number": index,
-            "topic": topic,
-            "difficulty": difficulty,
-            "correct": correct,
-            "result_label": "Correct" if correct else "Review",
-            "confidence": confidence,
-            "student_answer": str(student_answer),
-            "correct_answer": str(correct_answer),
-            "question": str(question),
-            "quiz_id": str(quiz_id),
-            "signal": signal,
-            "next_action": next_action,
-            "explanation": explanation,
-            "feedback_title": str(feedback.get("title", "")).strip(),
-            "feedback_summary": str(feedback.get("summary", "")).strip(),
-            "confidence_insight": str(feedback.get("confidence_insight", "")).strip(),
-            "resource_note": str(feedback.get("resource_note", "")).strip(),
-            "review_note": str(feedback.get("review_note", "")).strip(),
-        })
+        rows.append(
+            {
+                "number": index,
+                "topic": topic,
+                "difficulty": difficulty,
+                "correct": correct,
+                "result_label": "Correct" if correct else "Review",
+                "confidence": confidence,
+                "student_answer": str(student_answer),
+                "correct_answer": str(correct_answer),
+                "question": str(question),
+                "quiz_id": str(quiz_id),
+                "signal": signal,
+                "next_action": next_action,
+                "explanation": explanation,
+                "feedback_title": str(feedback.get("title", "")).strip(),
+                "feedback_summary": str(feedback.get("summary", "")).strip(),
+                "confidence_insight": str(feedback.get("confidence_insight", "")).strip(),
+                "resource_note": str(feedback.get("resource_note", "")).strip(),
+                "review_note": str(feedback.get("review_note", "")).strip(),
+            }
+        )
 
     return {
         "ready": summary["ready"],
@@ -316,25 +313,21 @@ def build_quiz_session_feedback(
         priority_feedback = "No urgent review topic yet. Keep the session going."
 
     if strong_topics:
-        strengths = (
-            "Strong signals: " + ", ".join(strong_topics[:3]) + "."
-        )
+        strengths = "Strong signals: " + ", ".join(strong_topics[:3]) + "."
     else:
         strengths = "Strong signals will appear here as correct answers accumulate."
 
     confidence_notes: list[str] = []
     if misconception_topics:
-        confidence_notes.append(
-            "High confidence on a wrong answer makes that topic a priority."
-        )
+        confidence_notes.append("High confidence on a wrong answer makes that topic a priority.")
     if low_confidence_correct:
         confidence_notes.append(
             "Low confidence on a correct answer means the concept is close but not fluent."
         )
     confidence_feedback = (
         " ".join(confidence_notes)
-        if confidence_notes else
-        "Your confidence ratings are being used to tune difficulty and review timing."
+        if confidence_notes
+        else "Your confidence ratings are being used to tune difficulty and review timing."
     )
 
     return {
@@ -372,9 +365,7 @@ def build_persisted_quiz_session(
     quiz_ids = _quiz_history_ids(session_results)
     created_at = (now_fn or (lambda: datetime.now(timezone.utc)))().isoformat()
     session_id = (
-        _stable_session_id("session", quiz_ids)
-        if quiz_ids
-        else f"session-{uuid.uuid4().hex}"
+        _stable_session_id("session", quiz_ids) if quiz_ids else f"session-{uuid.uuid4().hex}"
     )
 
     return {
@@ -446,26 +437,28 @@ def build_quiz_session_from_history(
             continue
         confidence = _coerce_confidence(entry.get("confidence", 3))
         correct_answer = entry.get("correct_answer") or "Not saved in older history"
-        session_results.append({
-            "quiz": {
-                "id": entry.get("id", ""),
-                "course": entry.get("course", ""),
-                "topic": entry.get("topic", "this topic"),
-                "difficulty": entry.get("difficulty", "?"),
-                "question": entry.get("question", ""),
-                "correct_answer": correct_answer,
-                "explanation": entry.get("explanation", ""),
-            },
-            "result": {
-                "correct": bool(entry.get("correct", False)),
-                "correct_answer": correct_answer,
+        session_results.append(
+            {
+                "quiz": {
+                    "id": entry.get("id", ""),
+                    "course": entry.get("course", ""),
+                    "topic": entry.get("topic", "this topic"),
+                    "difficulty": entry.get("difficulty", "?"),
+                    "question": entry.get("question", ""),
+                    "correct_answer": correct_answer,
+                    "explanation": entry.get("explanation", ""),
+                },
+                "result": {
+                    "correct": bool(entry.get("correct", False)),
+                    "correct_answer": correct_answer,
+                    "confidence": confidence,
+                    "explanation": entry.get("explanation", ""),
+                    "quiz_id": entry.get("id", ""),
+                },
                 "confidence": confidence,
-                "explanation": entry.get("explanation", ""),
-                "quiz_id": entry.get("id", ""),
-            },
-            "confidence": confidence,
-            "student_answer": entry.get("student_answer", "not shown"),
-        })
+                "student_answer": entry.get("student_answer", "not shown"),
+            }
+        )
 
     if len(session_results) < min_questions:
         return None

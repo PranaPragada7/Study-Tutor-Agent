@@ -149,6 +149,7 @@ COOLDOWN_TIME_SECONDS: int = _env_int("STUDY_TUTOR_COOLDOWN_TIME_SECONDS", 300)
 # Quiz semantic verifier  (consumed by agents/tutor_agent.py)
 # ---------------------------------------------------------------------------
 
+
 # When enabled, every LLM-generated quiz triggers a second cheap LLM
 # pass that fact-checks the answer key (is correct_answer actually
 # correct? are distractors plausible but wrong? does explanation
@@ -208,10 +209,7 @@ def snapshot() -> dict[str, Any]:
     Useful when filing a bug report — the user can paste the full
     snapshot and the maintainer knows exactly which knobs were tuned.
     """
-    return {
-        k: v for k, v in globals().items()
-        if k.isupper() and not k.startswith("_")
-    }
+    return {k: v for k, v in globals().items() if k.isupper() and not k.startswith("_")}
 
 
 __all__ = [

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import httpx
+from anthropic import AuthenticationError
+
 from agents.tutor_agent import TutorAgent
 from utils.student_profile import (
     clear_chat_history,
@@ -28,6 +31,22 @@ class _FakeMessages:
 class _FakeClaude:
     def __init__(self) -> None:
         self.messages = _FakeMessages()
+
+
+class _RejectedMessages:
+    def create(self, **_kwargs):
+        request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+        response = httpx.Response(401, request=request)
+        raise AuthenticationError(
+            "API key is invalid.",
+            response=response,
+            body={"error": {"type": "authentication_error"}},
+        )
+
+
+class _RejectedClaude:
+    def __init__(self) -> None:
+        self.messages = _RejectedMessages()
 
 
 def _profile(monkeypatch, tmp_path) -> dict:
@@ -133,3 +152,16 @@ def test_clearing_chat_history_is_durable(monkeypatch, tmp_path):
     reloaded = load_profile("Memory Student")
     assert reloaded is not None
     assert reloaded["chat_history"] == []
+
+
+def test_invalid_api_key_returns_actionable_chat_message(monkeypatch, tmp_path):
+    profile = _profile(monkeypatch, tmp_path)
+    tutor = TutorAgent(profile, client=_RejectedClaude())
+
+    response = tutor.chat("Help me study recursion")
+    loaded = load_profile("Memory Student")
+
+    assert "authentication failed" in response.lower()
+    assert "ANTHROPIC_API_KEY" in response
+    assert loaded is not None
+    assert loaded["chat_history"][-1]["assistant_response"] == response

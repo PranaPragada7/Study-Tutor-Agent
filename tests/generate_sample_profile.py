@@ -8,15 +8,15 @@ profile.
 Run with: python tests/generate_sample_profile.py
 """
 
-import sys
 import os
 import random
+import sys
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.student_profile import create_profile, record_quiz_result, save_profile
 from utils.spaced_repetition import SpacedRepetitionScheduler
+from utils.student_profile import create_profile, record_quiz_result, save_profile
 
 
 class _MutableClock:
@@ -43,10 +43,14 @@ def generate_sample_profile():
     print("📚 Generating sample profile: 'Sample Student'")
 
     # Create profile with courses
-    profile = create_profile("Sample Student", [
-        {"name": "Intro to CS", "difficulty": 3, "exam_date": "2025-05-15"},
-        {"name": "Calculus II", "difficulty": 4, "exam_date": "2025-05-20"},
-    ], learning_style="balanced")
+    profile = create_profile(
+        "Sample Student",
+        [
+            {"name": "Intro to CS", "difficulty": 3, "exam_date": "2025-05-15"},
+            {"name": "Calculus II", "difficulty": 4, "exam_date": "2025-05-20"},
+        ],
+        learning_style="balanced",
+    )
 
     # Define topics per course
     cs_topics = {
@@ -66,9 +70,17 @@ def generate_sample_profile():
 
     # Add topics to profile
     for t in cs_topics:
-        profile["courses"]["Intro to CS"]["topics"][t] = {"correct": 0, "attempted": 0, "current_difficulty": 2}
+        profile["courses"]["Intro to CS"]["topics"][t] = {
+            "correct": 0,
+            "attempted": 0,
+            "current_difficulty": 2,
+        }
     for t in calc_topics:
-        profile["courses"]["Calculus II"]["topics"][t] = {"correct": 0, "attempted": 0, "current_difficulty": 2}
+        profile["courses"]["Calculus II"]["topics"][t] = {
+            "correct": 0,
+            "attempted": 0,
+            "current_difficulty": 2,
+        }
 
     # Mutable clock so both record_quiz_result timestamps AND the
     # spaced-repetition scheduler advance through 2 simulated weeks.
@@ -174,8 +186,13 @@ def generate_sample_profile():
             # ``now_fn`` hook so the sample profile quiz_history traces a 2-week
             # study arc instead of collapsing to wall-clock-now.
             profile = record_quiz_result(
-                profile, course, topic, difficulty, correct,
-                question, "A" if correct else random.choice(["B", "C", "D"]),
+                profile,
+                course,
+                topic,
+                difficulty,
+                correct,
+                question,
+                "A" if correct else random.choice(["B", "C", "D"]),
                 confidence,
                 now_fn=lambda t=timestamp: t,
             )
@@ -193,7 +210,7 @@ def generate_sample_profile():
     for cname, cdata in profile["courses"].items():
         acc = cdata["total_correct"] / max(cdata["total_attempted"], 1) * 100
         print(f"     {cname}: {acc:.1f}% accuracy over {cdata['total_attempted']} questions")
-    print(f"  💾 Saved to: data/sample_student.json")
+    print("  💾 Saved to: data/sample_student.json")
     print()
     print("  To use: run the app and click Load Sample Student in the sidebar.")
 

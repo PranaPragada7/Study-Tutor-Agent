@@ -90,7 +90,6 @@ LOCAL_PREREQUISITES: dict[str, list[str]] = {
     "object-oriented programming": ["functions", "data structures"],
     "oop": ["functions", "data structures"],
     "inheritance": ["object-oriented programming", "polymorphism basics"],
-
     # Algorithms
     "big-o notation": ["loops", "functions"],
     "dynamic programming": ["recursion", "memoisation"],
@@ -100,7 +99,6 @@ LOCAL_PREREQUISITES: dict[str, list[str]] = {
     "dfs": ["recursion", "graphs"],
     "breadth-first search": ["queues", "graphs"],
     "bfs": ["queues", "graphs"],
-
     # Calculus
     "limits": ["functions", "algebra"],
     "derivatives": ["limits", "functions", "algebra"],
@@ -109,7 +107,6 @@ LOCAL_PREREQUISITES: dict[str, list[str]] = {
     "series convergence": ["sequences", "limits"],
     "taylor series": ["derivatives", "series convergence"],
     "polar coordinates": ["trigonometry", "the unit circle"],
-
     # Linear algebra
     "matrices": ["systems of linear equations"],
     "eigenvalues": ["matrices", "determinants"],
@@ -126,8 +123,9 @@ def lookup_local_prerequisites(topic: str) -> list[str]:
     return list(LOCAL_PREREQUISITES.get(canonical_topic_id(topic), []))
 
 
-def merge_prerequisites(local: list[str], llm_suggested: list[str],
-                        max_total: int = 5) -> list[str]:
+def merge_prerequisites(
+    local: list[str], llm_suggested: list[str], max_total: int = 5
+) -> list[str]:
     """Combine locally-known and LLM-suggested prerequisites.
 
     Local entries come FIRST (they're more reliable / stable). Any

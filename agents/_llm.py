@@ -69,14 +69,16 @@ F = TypeVar("F", bound=Callable[..., Any])
 try:
     from anthropic import (  # type: ignore[import-not-found]
         Anthropic,
-        APIError,
         APIConnectionError,
+        APIError,
         APIStatusError,
         APITimeoutError,
+        AuthenticationError,
         BadRequestError,
         InternalServerError,
         RateLimitError,
     )
+
     _HAS_ANTHROPIC = True
 except ImportError:
     _HAS_ANTHROPIC = False
@@ -96,6 +98,9 @@ except ImportError:
     class APITimeoutError(APIError):  # type: ignore[no-redef]
         pass
 
+    class AuthenticationError(APIStatusError):  # type: ignore[no-redef]
+        status_code: int = 401
+
     class BadRequestError(APIError):  # type: ignore[no-redef]
         pass
 
@@ -111,6 +116,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Zero-trust API key validation
 # ---------------------------------------------------------------------------
+
 
 def require_api_key() -> str:
     """Return the ANTHROPIC_API_KEY or raise a descriptive RuntimeError.
@@ -132,6 +138,7 @@ def require_api_key() -> str:
 # Default client factory  (explicit os.getenv, no hardcoded keys)
 # ---------------------------------------------------------------------------
 
+
 def get_default_client() -> "Anthropic | None":
     """
     Construct a default Anthropic client for callers that don't want to
@@ -151,8 +158,7 @@ def get_default_client() -> "Anthropic | None":
     api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         logger.warning(
-            "ANTHROPIC_API_KEY environment variable is not set "
-            "-- LLM features will be unavailable"
+            "ANTHROPIC_API_KEY environment variable is not set -- LLM features will be unavailable"
         )
         return None
     return Anthropic(api_key=api_key)
@@ -226,12 +232,14 @@ def retry_llm_call(
                         # Diagnostics tab can compare LLM_RETRIES against
                         # LLM_CALLS to spot a flaky deployment.
                         COUNTERS.incr(LLM_RETRIES)
-                        delay = base_delay * (2 ** attempt)
+                        delay = base_delay * (2**attempt)
                         logger.warning(
-                            "Retryable LLM error in %s (attempt %d/%d), "
-                            "retrying in %.1fs: %s",
-                            func.__name__, attempt + 1, max_retries,
-                            delay, exc,
+                            "Retryable LLM error in %s (attempt %d/%d), retrying in %.1fs: %s",
+                            func.__name__,
+                            attempt + 1,
+                            max_retries,
+                            delay,
+                            exc,
                         )
                         time.sleep(delay)
             raise last_error  # type: ignore[misc]
@@ -244,6 +252,7 @@ def retry_llm_call(
 # ---------------------------------------------------------------------------
 # Central LLM error-handling decorator
 # ---------------------------------------------------------------------------
+
 
 def _handle_llm_error(
     instance: Any,
@@ -299,6 +308,9 @@ def llm_error_handler(
                 # Covers 5xx including 529 "Overloaded" after retries exhausted.
                 logger.exception("InternalServerError in %s", label)
                 _handle_llm_error(self, "server_error", label, e)
+            except AuthenticationError as e:
+                logger.error("Authentication failed in %s: %s", label, e)
+                _handle_llm_error(self, "authentication_error", label, e)
             except BadRequestError as e:
                 logger.exception("BadRequestError in %s", label)
                 _handle_llm_error(self, "bad_request", label, e)
@@ -378,6 +390,7 @@ __all__ = [
     "APIConnectionError",
     "APIStatusError",
     "APITimeoutError",
+    "AuthenticationError",
     "BadRequestError",
     "InternalServerError",
     "RateLimitError",

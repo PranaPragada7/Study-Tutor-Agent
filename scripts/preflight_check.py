@@ -18,6 +18,7 @@ Exit codes
 The script never prints the API key. When a check involves the key,
 it only reports presence / placeholder status.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -145,6 +146,7 @@ def check_api_key(env_path: Path = ENV_PATH) -> CheckResult:
 
     try:
         from dotenv import dotenv_values  # type: ignore[import-not-found]
+
         if env_path.exists():
             env_raw = str(dotenv_values(env_path).get("ANTHROPIC_API_KEY", "") or "").strip()
             if env_raw and (not raw or raw in PLACEHOLDER_KEYS):
@@ -273,9 +275,7 @@ def run_all_checks(auto_regenerate: bool = True) -> list[CheckResult]:
     results.append(check_python_version())
     shell_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     valid_shell_key = (
-        shell_key not in PLACEHOLDER_KEYS
-        and shell_key.startswith("sk-")
-        and len(shell_key) > 30
+        shell_key not in PLACEHOLDER_KEYS and shell_key.startswith("sk-") and len(shell_key) > 30
     )
     results.append(check_imports(REQUIRED_MODULES))
     if valid_shell_key:

@@ -19,8 +19,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import agents.tutor_agent as tutor_module
-from agents.tutor_agent import TutorAgent
 import utils.student_profile as profile_module
+from agents.tutor_agent import TutorAgent
 from utils.student_profile import create_profile
 
 
@@ -50,7 +50,9 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="study_tutor_feedback_check_") as tmp:
             profile_module.DATA_DIR = tmp
-            profile = create_profile("Feedback Sample Profile", [{"name": "Intro to CS", "difficulty": 3}])
+            profile = create_profile(
+                "Feedback Sample Profile", [{"name": "Intro to CS", "difficulty": 3}]
+            )
             return _run_feedback_check(profile)
     finally:
         profile_module.DATA_DIR = original_data_dir

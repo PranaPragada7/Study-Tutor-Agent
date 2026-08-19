@@ -14,24 +14,25 @@ Tests:
 Run with: pytest tests/test_multi_agent.py -v
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.agent_comm import MessageBus, AgentMessage, MessageType
 from agents.resource_agent import ResourceAgent
 from agents.tutor_agent import TutorAgent
-from utils.student_profile import create_profile, record_quiz_result
+from utils.agent_comm import AgentMessage, MessageBus, MessageType
+from utils.student_profile import create_profile
 
 
 @pytest.fixture(autouse=True)
 def _temp_data_dir():
     """Redirect data dir to a temp folder for every test."""
     import utils.student_profile as sp
+
     original = sp.DATA_DIR
     sp.DATA_DIR = tempfile.mkdtemp()
     yield
@@ -89,12 +90,19 @@ class TestBasicCommunication:
         ResourceAgent(bus)
         bus.register_agent("TutorAgent")
 
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REQUEST_MATERIALS,
-            {"topic": "Loops", "course": "CS101",
-             "student_level": "beginner", "learning_style": "balanced"},
-        ))
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REQUEST_MATERIALS,
+                {
+                    "topic": "Loops",
+                    "course": "CS101",
+                    "student_level": "beginner",
+                    "learning_style": "balanced",
+                },
+            )
+        )
 
         log = bus.get_conversation_log()
         assert len(log) == 2
@@ -110,13 +118,15 @@ class TestWeaknessReportStrategy:
         ResourceAgent(bus)
         bus.register_agent("TutorAgent")
 
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REPORT_WEAKNESS,
-            {"topic": "Recursion", "course": "CS101",
-             "accuracy": 0.15, "attempts": 8},
-            priority=3,
-        ))
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REPORT_WEAKNESS,
+                {"topic": "Recursion", "course": "CS101", "accuracy": 0.15, "attempts": 8},
+                priority=3,
+            )
+        )
 
         tutor_inbox = bus.receive("TutorAgent")
         assert len(tutor_inbox) == 1
@@ -134,12 +144,19 @@ class TestKnowledgeBaseCaching:
         ResourceAgent(bus)
         bus.register_agent("TutorAgent")
 
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REQUEST_MATERIALS,
-            {"topic": "Loops", "course": "CS101",
-             "student_level": "beginner", "learning_style": "balanced"},
-        ))
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REQUEST_MATERIALS,
+                {
+                    "topic": "Loops",
+                    "course": "CS101",
+                    "student_level": "beginner",
+                    "learning_style": "balanced",
+                },
+            )
+        )
         resp = bus.receive("TutorAgent")[0]
         assert resp.content.get("from_cache") is False
 
@@ -149,21 +166,35 @@ class TestKnowledgeBaseCaching:
         bus.register_agent("TutorAgent")
 
         for _ in range(2):
-            bus.send(AgentMessage(
-                "TutorAgent", "ResourceAgent",
-                MessageType.REQUEST_MATERIALS,
-                {"topic": "Loops", "course": "CS101",
-                 "student_level": "beginner", "learning_style": "balanced"},
-            ))
+            bus.send(
+                AgentMessage(
+                    "TutorAgent",
+                    "ResourceAgent",
+                    MessageType.REQUEST_MATERIALS,
+                    {
+                        "topic": "Loops",
+                        "course": "CS101",
+                        "student_level": "beginner",
+                        "learning_style": "balanced",
+                    },
+                )
+            )
             bus.receive("TutorAgent")
 
         # The second response was cached — verify via KB stats
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REQUEST_MATERIALS,
-            {"topic": "Loops", "course": "CS101",
-             "student_level": "beginner", "learning_style": "balanced"},
-        ))
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REQUEST_MATERIALS,
+                {
+                    "topic": "Loops",
+                    "course": "CS101",
+                    "student_level": "beginner",
+                    "learning_style": "balanced",
+                },
+            )
+        )
         resp = bus.receive("TutorAgent")[0]
         assert resp.content.get("from_cache") is True
 
@@ -172,12 +203,19 @@ class TestKnowledgeBaseCaching:
         resource = ResourceAgent(bus)
         bus.register_agent("TutorAgent")
 
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REQUEST_MATERIALS,
-            {"topic": "Loops", "course": "CS101",
-             "student_level": "beginner", "learning_style": "balanced"},
-        ))
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REQUEST_MATERIALS,
+                {
+                    "topic": "Loops",
+                    "course": "CS101",
+                    "student_level": "beginner",
+                    "learning_style": "balanced",
+                },
+            )
+        )
         bus.receive("TutorAgent")
 
         stats = resource.get_knowledge_base_stats()
@@ -189,12 +227,19 @@ class TestKnowledgeBaseCaching:
         resource = ResourceAgent(bus)
         bus.register_agent("TutorAgent")
 
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REQUEST_MATERIALS,
-            {"topic": "Loops", "course": "CS101",
-             "student_level": "beginner", "learning_style": "balanced"},
-        ))
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REQUEST_MATERIALS,
+                {
+                    "topic": "Loops",
+                    "course": "CS101",
+                    "student_level": "beginner",
+                    "learning_style": "balanced",
+                },
+            )
+        )
         bus.receive("TutorAgent")
 
         suggestions = resource.suggest_materials_for_topics(["Loops", "Unknown"])
@@ -219,12 +264,14 @@ class TestWeaknessPatternDetection:
         bus.register_agent("TutorAgent")
 
         for topic in ["Recursion", "Loops", "Functions", "OOP"]:
-            bus.send(AgentMessage(
-                "TutorAgent", "ResourceAgent",
-                MessageType.REPORT_WEAKNESS,
-                {"topic": topic, "course": "CS101",
-                 "accuracy": 0.2, "attempts": 5},
-            ))
+            bus.send(
+                AgentMessage(
+                    "TutorAgent",
+                    "ResourceAgent",
+                    MessageType.REPORT_WEAKNESS,
+                    {"topic": topic, "course": "CS101", "accuracy": 0.2, "attempts": 5},
+                )
+            )
             bus.receive("TutorAgent")
 
         log = bus.get_conversation_log()
@@ -241,23 +288,31 @@ class TestFullCommunicationFlow:
 
         # 3 material requests
         for i in range(3):
-            bus.send(AgentMessage(
-                "TutorAgent", "ResourceAgent",
-                MessageType.REQUEST_MATERIALS,
-                {"topic": "Recursion", "course": "CS101",
-                 "student_level": "beginner",
-                 "context": f"Attempt {i+1}: confused about base case",
-                 "learning_style": "visual"},
-            ))
+            bus.send(
+                AgentMessage(
+                    "TutorAgent",
+                    "ResourceAgent",
+                    MessageType.REQUEST_MATERIALS,
+                    {
+                        "topic": "Recursion",
+                        "course": "CS101",
+                        "student_level": "beginner",
+                        "context": f"Attempt {i + 1}: confused about base case",
+                        "learning_style": "visual",
+                    },
+                )
+            )
             bus.receive("TutorAgent")
 
         # Weakness report
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REPORT_WEAKNESS,
-            {"topic": "Recursion", "course": "CS101",
-             "accuracy": 0.0, "attempts": 3},
-        ))
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REPORT_WEAKNESS,
+                {"topic": "Recursion", "course": "CS101", "accuracy": 0.0, "attempts": 3},
+            )
+        )
         strategy_response = bus.receive("TutorAgent")[0]
 
         stats = bus.get_stats()
@@ -276,13 +331,19 @@ class TestMessageBusStats:
         ResourceAgent(bus)
         bus.register_agent("TutorAgent")
 
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REQUEST_MATERIALS, {"topic": "A"}))
-        bus.send(AgentMessage(
-            "TutorAgent", "ResourceAgent",
-            MessageType.REPORT_WEAKNESS,
-            {"topic": "B", "accuracy": 0.3, "attempts": 5}))
+        bus.send(
+            AgentMessage(
+                "TutorAgent", "ResourceAgent", MessageType.REQUEST_MATERIALS, {"topic": "A"}
+            )
+        )
+        bus.send(
+            AgentMessage(
+                "TutorAgent",
+                "ResourceAgent",
+                MessageType.REPORT_WEAKNESS,
+                {"topic": "B", "accuracy": 0.3, "attempts": 5},
+            )
+        )
         bus.receive("TutorAgent")
 
         stats = bus.get_stats()
@@ -306,22 +367,36 @@ class TestKnowledgeBaseEviction:
 
         # Add 5 topics
         for i in range(5):
-            bus.send(AgentMessage(
-                "TutorAgent", "ResourceAgent",
-                MessageType.REQUEST_MATERIALS,
-                {"topic": f"Topic_{i}", "course": "CS101",
-                 "student_level": "beginner", "learning_style": "balanced"},
-            ))
+            bus.send(
+                AgentMessage(
+                    "TutorAgent",
+                    "ResourceAgent",
+                    MessageType.REQUEST_MATERIALS,
+                    {
+                        "topic": f"Topic_{i}",
+                        "course": "CS101",
+                        "student_level": "beginner",
+                        "learning_style": "balanced",
+                    },
+                )
+            )
             bus.receive("TutorAgent")
 
         # Request Topic_0 many times so it has high times_requested
         for _ in range(5):
-            bus.send(AgentMessage(
-                "TutorAgent", "ResourceAgent",
-                MessageType.REQUEST_MATERIALS,
-                {"topic": "Topic_0", "course": "CS101",
-                 "student_level": "beginner", "learning_style": "balanced"},
-            ))
+            bus.send(
+                AgentMessage(
+                    "TutorAgent",
+                    "ResourceAgent",
+                    MessageType.REQUEST_MATERIALS,
+                    {
+                        "topic": "Topic_0",
+                        "course": "CS101",
+                        "student_level": "beginner",
+                        "learning_style": "balanced",
+                    },
+                )
+            )
             bus.receive("TutorAgent")
 
         assert len(resource.knowledge_base) <= 3

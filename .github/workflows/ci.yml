@@ -10,8 +10,13 @@ permissions:
 
 jobs:
   test:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -19,11 +24,22 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
 
-      - name: Run test suite
+      - name: Check lint and formatting
+        if: matrix.python-version == '3.11'
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Run test suite with coverage
+        if: matrix.python-version == '3.11'
+        run: python -m pytest --cov --cov-report=term-missing
+
+      - name: Run compatibility tests
+        if: matrix.python-version != '3.11'
         run: python -m pytest -q

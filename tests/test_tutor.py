@@ -13,7 +13,6 @@ Covers:
 """
 
 import os
-import random
 import sys
 import tempfile
 
@@ -23,26 +22,24 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from agents.adaptive_engine import AdaptiveEngine
+from utils.agent_comm import AgentMessage, MessageBus, MessageType
+from utils.issue_detector import IssueDetector
+from utils.spaced_repetition import SpacedRepetitionScheduler
 from utils.student_profile import (
     create_profile,
-    load_profile,
-    save_profile,
-    record_quiz_result,
-    get_weakest_topics,
     get_performance_summary,
-    DATA_DIR,
+    get_weakest_topics,
+    load_profile,
+    record_quiz_result,
+    save_profile,
 )
-from utils.spaced_repetition import SpacedRepetitionScheduler
-from utils.issue_detector import IssueDetector, Issue
-from utils.agent_comm import MessageBus, AgentMessage, MessageType
-
 
 # ═══════════════════════════════════════════════
 # Adaptive Engine Tests
 # ═══════════════════════════════════════════════
 
-class TestAdaptiveEngine:
 
+class TestAdaptiveEngine:
     def test_initialization(self):
         engine = AdaptiveEngine()
         assert engine.epsilon == 0.2
@@ -189,31 +186,40 @@ class TestAdaptiveEngine:
 # Student Profile Tests
 # ═══════════════════════════════════════════════
 
-class TestStudentProfile:
 
+class TestStudentProfile:
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def test_create_profile(self):
-        profile = create_profile("Test Student", [
-            {"name": "CS101", "difficulty": 3},
-            {"name": "Math 201", "difficulty": 4},
-        ])
+        profile = create_profile(
+            "Test Student",
+            [
+                {"name": "CS101", "difficulty": 3},
+                {"name": "Math 201", "difficulty": 4},
+            ],
+        )
         assert profile["name"] == "Test Student"
         assert "CS101" in profile["courses"]
         assert profile["total_quizzes"] == 0
 
     def test_create_profile_with_learning_style(self):
-        profile = create_profile("Style Student", [
-            {"name": "Bio", "difficulty": 2},
-        ], learning_style="visual")
+        profile = create_profile(
+            "Style Student",
+            [
+                {"name": "Bio", "difficulty": 2},
+            ],
+            learning_style="visual",
+        )
         assert profile["learning_style"] == "visual"
         assert "spaced_repetition" in profile
 
@@ -231,8 +237,14 @@ class TestStudentProfile:
     def test_record_quiz_result_with_confidence(self):
         profile = create_profile("Quiz Tester", [{"name": "CS101", "difficulty": 3}])
         profile = record_quiz_result(
-            profile, course="CS101", topic="Loops", difficulty=2,
-            correct=True, question="What is a for loop?", answer="A", confidence=5
+            profile,
+            course="CS101",
+            topic="Loops",
+            difficulty=2,
+            correct=True,
+            question="What is a for loop?",
+            answer="A",
+            confidence=5,
         )
         assert profile["total_quizzes"] == 1
         assert profile["quiz_history"][-1]["confidence"] == 5
@@ -290,8 +302,8 @@ class TestStudentProfile:
 # Spaced Repetition Tests
 # ═══════════════════════════════════════════════
 
-class TestSpacedRepetition:
 
+class TestSpacedRepetition:
     def test_first_review_sets_interval(self):
         sr = SpacedRepetitionScheduler()
         sr.update_topic("Recursion", quality=4)
@@ -341,8 +353,14 @@ class TestSpacedRepetition:
         sr.update_topic("Topic B", quality=2)
         data = sr.to_dict()
         sr2 = SpacedRepetitionScheduler.from_dict(data)
-        assert sr2.topic_schedule["Topic A"]["easiness_factor"] == sr.topic_schedule["Topic A"]["easiness_factor"]
-        assert sr2.topic_schedule["Topic B"]["interval_days"] == sr.topic_schedule["Topic B"]["interval_days"]
+        assert (
+            sr2.topic_schedule["Topic A"]["easiness_factor"]
+            == sr.topic_schedule["Topic A"]["easiness_factor"]
+        )
+        assert (
+            sr2.topic_schedule["Topic B"]["interval_days"]
+            == sr.topic_schedule["Topic B"]["interval_days"]
+        )
 
     def test_due_topics_respects_injected_clock(self):
         """
@@ -353,6 +371,7 @@ class TestSpacedRepetition:
         advances.
         """
         from datetime import datetime, timedelta, timezone
+
         from utils.spaced_repetition import SpacedRepetitionScheduler
 
         class FakeClock:
@@ -392,6 +411,7 @@ class TestSpacedRepetition:
         offset-naive and offset-aware datetimes".
         """
         from datetime import datetime, timezone
+
         from utils.spaced_repetition import SpacedRepetitionScheduler
 
         sr = SpacedRepetitionScheduler(now_fn=lambda: datetime(2030, 1, 1, tzinfo=timezone.utc))
@@ -411,16 +431,21 @@ class TestSpacedRepetition:
 # Issue Detector Tests
 # ═══════════════════════════════════════════════
 
-class TestIssueDetector:
 
+class TestIssueDetector:
     def _make_profile_with_streak(self, n_wrong: int):
         """Helper: create a profile with N wrong answers in a row."""
         import utils.student_profile as sp
+
         orig = sp.DATA_DIR
         sp.DATA_DIR = tempfile.mkdtemp()
 
         profile = create_profile("Streak", [{"name": "CS", "difficulty": 3}])
-        profile["courses"]["CS"]["topics"]["Loops"] = {"correct": 0, "attempted": 0, "current_difficulty": 2}
+        profile["courses"]["CS"]["topics"]["Loops"] = {
+            "correct": 0,
+            "attempted": 0,
+            "current_difficulty": 2,
+        }
         det = IssueDetector()
         for i in range(n_wrong):
             profile = record_quiz_result(profile, "CS", "Loops", 3, False, f"Q{i}", "B")
@@ -474,8 +499,8 @@ class TestIssueDetector:
 # Agent Communication Tests
 # ═══════════════════════════════════════════════
 
-class TestAgentComm:
 
+class TestAgentComm:
     def test_register_and_send(self):
         bus = MessageBus()
         received = []
@@ -545,8 +570,8 @@ class TestAgentComm:
 # Adaptive Engine Seeding Tests
 # ═══════════════════════════════════════════════
 
-class TestAdaptiveEngineSeed:
 
+class TestAdaptiveEngineSeed:
     def test_seed_produces_deterministic_selection(self):
         """Two engines with the same seed must make identical choices."""
         topics = ["A", "B", "C", "D", "E"]
@@ -571,24 +596,29 @@ class TestAdaptiveEngineSeed:
 # Data Integrity: total_quizzes sync
 # ═══════════════════════════════════════════════
 
-class TestTotalQuizzesSync:
 
+class TestTotalQuizzesSync:
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def test_total_quizzes_equals_sum_of_course_attempted(self):
         """total_quizzes must equal the sum of course total_attempted."""
-        profile = create_profile("Sync Test", [
-            {"name": "CS101", "difficulty": 3},
-            {"name": "Math", "difficulty": 2},
-        ])
+        profile = create_profile(
+            "Sync Test",
+            [
+                {"name": "CS101", "difficulty": 3},
+                {"name": "Math", "difficulty": 2},
+            ],
+        )
         for _ in range(5):
             profile = record_quiz_result(profile, "CS101", "Loops", 2, True, "q", "a")
         for _ in range(3):
@@ -609,23 +639,27 @@ class TestTotalQuizzesSync:
 # Issue Detector: Alert Cooldown
 # ═══════════════════════════════════════════════
 
-class TestAlertCooldown:
 
+class TestAlertCooldown:
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def test_same_issue_suppressed_within_10_questions(self):
         """The same issue type should not fire twice within 10 questions."""
         profile = create_profile("Cooldown", [{"name": "CS", "difficulty": 3}])
         profile["courses"]["CS"]["topics"]["Loops"] = {
-            "correct": 0, "attempted": 0, "current_difficulty": 2,
+            "correct": 0,
+            "attempted": 0,
+            "current_difficulty": 2,
         }
         det = IssueDetector()
 
@@ -655,8 +689,8 @@ class TestAlertCooldown:
 # Deterministic Epsilon (LA-5)
 # ═══════════════════════════════════════════════
 
-class TestDeterministicEpsilon:
 
+class TestDeterministicEpsilon:
     def test_epsilon_formula(self):
         """epsilon = max(0.05, 1.0 * 0.995^total_steps)."""
         engine = AdaptiveEngine()
@@ -664,14 +698,14 @@ class TestDeterministicEpsilon:
             engine.update("T", 2, correct=True, _decay=False)
 
         # Simulate what _restore_rl_state does:
-        engine.epsilon = max(0.05, 1.0 * (0.995 ** 100))
-        expected = max(0.05, 0.995 ** 100)
+        engine.epsilon = max(0.05, 1.0 * (0.995**100))
+        expected = max(0.05, 0.995**100)
         assert abs(engine.epsilon - expected) < 1e-10
 
     def test_epsilon_floors_at_0_05(self):
         """After enough steps, epsilon must floor at 0.05."""
         # 0.995^600 ≈ 0.0498 < 0.05
-        epsilon = max(0.05, 1.0 * (0.995 ** 600))
+        epsilon = max(0.05, 1.0 * (0.995**600))
         assert epsilon == 0.05
 
 
@@ -679,17 +713,20 @@ class TestDeterministicEpsilon:
 # Tutor Agent: Strategy State Isolation & Lifecycle
 # ═══════════════════════════════════════════════
 
+
 class TestTutorAgent:
     """Regression coverage for tutor_agent.py state-hygiene fixes."""
 
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def test_strategy_isolation_and_lifecycle(self):
@@ -782,49 +819,61 @@ class TestTutorAgent:
 # extract_json: prose-wrapped LLM output
 # ═══════════════════════════════════════════════
 
+
 class TestExtractJson:
     """Robustness of the shared agents._llm.extract_json helper."""
 
     def test_pure_json_object(self):
         from agents._llm import extract_json
+
         assert extract_json('{"a": 1}') == {"a": 1}
 
     def test_pure_json_array(self):
         from agents._llm import extract_json
+
         assert extract_json('["x", "y"]') == ["x", "y"]
 
     def test_code_fence_json(self):
         from agents._llm import extract_json
+
         assert extract_json('```json\n{"a": 2}\n```') == {"a": 2}
 
     def test_bare_code_fence(self):
         from agents._llm import extract_json
-        assert extract_json('```\n[1,2,3]\n```') == [1, 2, 3]
+
+        assert extract_json("```\n[1,2,3]\n```") == [1, 2, 3]
 
     def test_prose_wrapped_object(self):
         from agents._llm import extract_json
+
         out = extract_json('Sure! Here is the JSON: {"a": 3, "b": [1,2]}. Hope this helps!')
         assert out == {"a": 3, "b": [1, 2]}
 
     def test_prose_wrapped_array(self):
         from agents._llm import extract_json
+
         out = extract_json('Topics:\n["Recursion", "Loops"]\nGood luck!')
         assert out == ["Recursion", "Loops"]
 
     def test_multiline_json(self):
         from agents._llm import extract_json
+
         out = extract_json('{\n  "question": "q",\n  "options": ["A","B"]\n}')
         assert out == {"question": "q", "options": ["A", "B"]}
 
     def test_no_json_raises_decode_error(self):
         import json
+
         from agents._llm import extract_json
+
         with pytest.raises(json.JSONDecodeError):
             extract_json("Sorry, no JSON here, just chat.")
 
     def test_none_raises_decode_error(self):
         import json
+
         from agents._llm import extract_json
+
         with pytest.raises(json.JSONDecodeError):
             extract_json(None)  # type: ignore[arg-type]
 
@@ -833,15 +882,20 @@ class TestExtractJson:
 # Quiz schema validation (fact-check pass)
 # ═══════════════════════════════════════════════
 
+
 class TestQuizValidation:
     """Verify _validate_quiz_shape rejects malformed LLM-generated quizzes
     by raising JSONDecodeError, which the @retry_llm_call decorator
     treats as retryable."""
 
     def _agent(self):
-        import tempfile, utils.student_profile as sp
+        import tempfile
+
+        import utils.student_profile as sp
+
         sp.DATA_DIR = tempfile.mkdtemp()
         from agents.tutor_agent import TutorAgent
+
         profile = create_profile("ValidShape", [{"name": "CS", "difficulty": 3}])
         return TutorAgent(profile)
 
@@ -859,68 +913,84 @@ class TestQuizValidation:
     def test_lowercase_correct_answer_normalised(self):
         agent = self._agent()
         # "a" should be accepted because we uppercase before checking.
-        agent._validate_quiz_shape({
-            "question": "q",
-            "options": ["A) x", "B) y", "C) z", "D) w"],
-            "correct_answer": "a",
-            "explanation": "e",
-        })
+        agent._validate_quiz_shape(
+            {
+                "question": "q",
+                "options": ["A) x", "B) y", "C) z", "D) w"],
+                "correct_answer": "a",
+                "explanation": "e",
+            }
+        )
 
     def test_non_dict_rejected(self):
         import json
+
         agent = self._agent()
         with pytest.raises(json.JSONDecodeError):
             agent._validate_quiz_shape(["not", "a", "dict"])
 
     def test_wrong_option_count_rejected(self):
         import json
+
         agent = self._agent()
         with pytest.raises(json.JSONDecodeError):
-            agent._validate_quiz_shape({
-                "question": "q",
-                "options": ["A) x", "B) y"],  # only 2
-                "correct_answer": "A",
-                "explanation": "e",
-            })
+            agent._validate_quiz_shape(
+                {
+                    "question": "q",
+                    "options": ["A) x", "B) y"],  # only 2
+                    "correct_answer": "A",
+                    "explanation": "e",
+                }
+            )
 
     def test_invalid_correct_answer_letter_rejected(self):
         import json
+
         agent = self._agent()
         with pytest.raises(json.JSONDecodeError):
-            agent._validate_quiz_shape({
-                "question": "q",
-                "options": ["A) x", "B) y", "C) z", "D) w"],
-                "correct_answer": "E",  # outside A-D
-                "explanation": "e",
-            })
+            agent._validate_quiz_shape(
+                {
+                    "question": "q",
+                    "options": ["A) x", "B) y", "C) z", "D) w"],
+                    "correct_answer": "E",  # outside A-D
+                    "explanation": "e",
+                }
+            )
 
     def test_correct_answer_letter_not_in_options_rejected(self):
         """The killer case: LLM said 'B' but only emitted options A/C/D/E."""
         import json
+
         agent = self._agent()
         with pytest.raises(json.JSONDecodeError):
-            agent._validate_quiz_shape({
-                "question": "q",
-                "options": ["A) x", "C) y", "D) z", "E) w"],
-                "correct_answer": "B",  # B never appears in options
-                "explanation": "e",
-            })
+            agent._validate_quiz_shape(
+                {
+                    "question": "q",
+                    "options": ["A) x", "C) y", "D) z", "E) w"],
+                    "correct_answer": "B",  # B never appears in options
+                    "explanation": "e",
+                }
+            )
 
     def test_non_string_options_rejected(self):
         import json
+
         agent = self._agent()
         with pytest.raises(json.JSONDecodeError):
-            agent._validate_quiz_shape({
-                "question": "q",
-                "options": ["A) x", 2, "C) z", "D) w"],  # int sneaks in
-                "correct_answer": "A",
-                "explanation": "e",
-            })
+            agent._validate_quiz_shape(
+                {
+                    "question": "q",
+                    "options": ["A) x", 2, "C) z", "D) w"],  # int sneaks in
+                    "correct_answer": "A",
+                    "explanation": "e",
+                }
+            )
 
 
 # ═══════════════════════════════════════════════
 # Prompt caching: system-block structure
 # ═══════════════════════════════════════════════
+
 
 class TestPromptCaching:
     """Verify the system prompt is assembled as cache-aware blocks
@@ -928,20 +998,26 @@ class TestPromptCaching:
 
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def _tutor(self):
         from agents.tutor_agent import TutorAgent
-        profile = create_profile("Cache", [
-            {"name": "CS101", "difficulty": 3},
-            {"name": "Math", "difficulty": 4},
-        ])
+
+        profile = create_profile(
+            "Cache",
+            [
+                {"name": "CS101", "difficulty": 3},
+                {"name": "Math", "difficulty": 4},
+            ],
+        )
         return TutorAgent(profile)
 
     def test_blocks_have_two_segments(self):
@@ -962,7 +1038,6 @@ class TestPromptCaching:
         assert "cache_control" not in blocks[1]
 
     def test_persona_lives_in_cached_block(self):
-        from agents.tutor_agent import TutorAgent
         blocks = self._tutor()._assemble_system_blocks()
         # The unique safety-guardrail string anchors us to the persona.
         assert "SAFETY GUARDRAILS" in blocks[0]["text"]
@@ -999,16 +1074,18 @@ class TestPromptCaching:
             "A",
             confidence=2,
         )
-        profile["quiz_sessions"] = [{
-            "created_at": "2026-05-07T12:00:00+00:00",
-            "course": "ML",
-            "correct": 3,
-            "question_count": 5,
-            "accuracy": 60.0,
-            "summary": "You answered 3 out of 5 questions correctly.",
-            "priority_topics": ["Supervised Learning"],
-            "misconception_topics": ["Supervised Learning"],
-        }]
+        profile["quiz_sessions"] = [
+            {
+                "created_at": "2026-05-07T12:00:00+00:00",
+                "course": "ML",
+                "correct": 3,
+                "question_count": 5,
+                "accuracy": 60.0,
+                "summary": "You answered 3 out of 5 questions correctly.",
+                "priority_topics": ["Supervised Learning"],
+                "misconception_topics": ["Supervised Learning"],
+            }
+        ]
         profile["resource_agent_state"] = {
             "knowledge_base": {
                 "supervised learning": {
@@ -1057,27 +1134,37 @@ class TestPromptCaching:
 # Clock injection: record_quiz_result + evaluate_answer
 # ═══════════════════════════════════════════════
 
+
 class TestClockInjection:
     """The now_fn hook lets presentations and tests stamp quiz_history entries
     with deterministic, backdated timestamps instead of wall-clock now."""
 
     def setup_method(self):
         import utils.student_profile as sp
+
         self._original_dir = sp.DATA_DIR
         self._temp_dir = tempfile.mkdtemp()
         sp.DATA_DIR = self._temp_dir
 
     def teardown_method(self):
         import utils.student_profile as sp
+
         sp.DATA_DIR = self._original_dir
 
     def test_record_quiz_result_uses_injected_clock(self):
         from datetime import datetime, timezone
+
         fixed = datetime(2024, 6, 15, 12, 30, tzinfo=timezone.utc)
 
         profile = create_profile("Clocked", [{"name": "CS", "difficulty": 3}])
         profile = record_quiz_result(
-            profile, "CS", "Loops", 2, True, "q", "A",
+            profile,
+            "CS",
+            "Loops",
+            2,
+            True,
+            "q",
+            "A",
             now_fn=lambda: fixed,
         )
         assert profile["quiz_history"][-1]["timestamp"] == fixed.isoformat()
@@ -1086,6 +1173,7 @@ class TestClockInjection:
         """No now_fn → real datetime.now(UTC). The new field must still
         be parseable as a tz-aware datetime."""
         from datetime import datetime
+
         profile = create_profile("Default", [{"name": "CS", "difficulty": 3}])
         profile = record_quiz_result(profile, "CS", "Loops", 2, True, "q", "A")
         ts = profile["quiz_history"][-1]["timestamp"]
@@ -1096,14 +1184,19 @@ class TestClockInjection:
         """The TutorAgent.evaluate_answer ``now_fn`` kwarg must reach
         record_quiz_result."""
         from datetime import datetime, timezone
+
         from agents.tutor_agent import TutorAgent
+
         fixed = datetime(2030, 1, 1, tzinfo=timezone.utc)
 
         profile = create_profile("Threaded", [{"name": "CS", "difficulty": 3}])
         tutor = TutorAgent(profile)  # no client → fallback path everywhere
         quiz = {
-            "topic": "Loops", "course": "CS", "difficulty": 2,
-            "question": "q", "correct_answer": "A",
+            "topic": "Loops",
+            "course": "CS",
+            "difficulty": 2,
+            "question": "q",
+            "correct_answer": "A",
             "options": ["A) x", "B) y", "C) z", "D) w"],
             "explanation": "e",
         }
@@ -1116,11 +1209,15 @@ class TestClockInjection:
         """Regression guard for the non-string-input hardening — non-string
         inputs return correct=False rather than AttributeError."""
         from agents.tutor_agent import TutorAgent
+
         profile = create_profile("Nonstring", [{"name": "CS", "difficulty": 3}])
         tutor = TutorAgent(profile)
         quiz = {
-            "topic": "Loops", "course": "CS", "difficulty": 2,
-            "question": "q", "correct_answer": "A",
+            "topic": "Loops",
+            "course": "CS",
+            "difficulty": 2,
+            "question": "q",
+            "correct_answer": "A",
             "options": ["A) x", "B) y", "C) z", "D) w"],
             "explanation": "e",
         }
@@ -1142,8 +1239,11 @@ class TestClockInjection:
         profile = create_profile("FeedbackCard", [{"name": "CS", "difficulty": 3}])
         tutor = TutorAgent(profile)
         quiz = {
-            "topic": "Loops", "course": "CS", "difficulty": 3,
-            "question": "What does a while loop do?", "correct_answer": "A",
+            "topic": "Loops",
+            "course": "CS",
+            "difficulty": 3,
+            "question": "What does a while loop do?",
+            "correct_answer": "A",
             "options": [
                 "A) Repeats while true",
                 "B) Runs once",

@@ -293,8 +293,31 @@ def run_all_checks(auto_regenerate: bool = True) -> list[CheckResult]:
     results: list[CheckResult] = []
     results.append(check_python_version())
     offline = _offline_mode_enabled(ENV_PATH)
+    shell_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    valid_shell_key = (
+        shell_key not in PLACEHOLDER_KEYS
+        and shell_key.startswith("sk-")
+        and len(shell_key) > 30
+    )
     results.append(check_imports(OFFLINE_REQUIRED_MODULES if offline else REQUIRED_MODULES))
-    results.append(check_env_file_exists(ENV_PATH))
+    if offline:
+        results.append(
+            CheckResult(
+                name=".env file",
+                ok=True,
+                detail="optional in offline mode",
+            )
+        )
+    elif valid_shell_key:
+        results.append(
+            CheckResult(
+                name=".env file",
+                ok=True,
+                detail="optional because the API key is set in the environment",
+            )
+        )
+    else:
+        results.append(check_env_file_exists(ENV_PATH))
     results.append(check_api_key(ENV_PATH))
     profile = check_sample_profile(SAMPLE_PROFILE_PATH)
     results.append(profile)

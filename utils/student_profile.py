@@ -19,11 +19,10 @@ from config import LOCK_TIMEOUT_SECONDS as _LOCK_TIMEOUT_SECONDS
 from config import MAX_CHAT_HISTORY as _MAX_CHAT_HISTORY
 from config import MAX_QUIZ_HISTORY as _MAX_QUIZ_HISTORY
 from utils.profile_merge import (
-    apply_entry_to_aggregates as _apply_entry_to_aggregates,
     ensure_course as _ensure_course,
-    entry_key as _entry_key,
+)
+from utils.profile_merge import (
     merge_profiles as _merge_profiles,
-    merge_resource_agent_state as _merge_resource_agent_state,
 )
 from utils.telemetry import (
     COUNTERS,
@@ -116,7 +115,7 @@ def _lock_path_for(profile_path: str) -> str:
 def _profile_path(student_name: str) -> str:
     """Get the file path for a student's profile."""
     # Sanitize: keep only alphanumeric, spaces, hyphens, underscores
-    safe_name = re.sub(r'[^a-zA-Z0-9 _-]', '', student_name).strip()
+    safe_name = re.sub(r"[^a-zA-Z0-9 _-]", "", student_name).strip()
     if not safe_name:
         raise ValueError("Student name must contain at least one alphanumeric character")
     safe_name = safe_name.lower().replace(" ", "_")
@@ -138,8 +137,9 @@ def _profile_path(student_name: str) -> str:
 # is just the I/O wrapper around it.
 
 
-def create_profile(student_name: str, courses: list[dict],
-                   learning_style: str = "balanced") -> dict:
+def create_profile(
+    student_name: str, courses: list[dict], learning_style: str = "balanced"
+) -> dict:
     """
     Create a new student profile.
 
@@ -164,9 +164,9 @@ def create_profile(student_name: str, courses: list[dict],
         "chat_history_reset_at": "",
         "total_quizzes": 0,
         "session_count": 0,
-        "spaced_repetition": {},   # SM-2 scheduler state
-        "streak_tracker": [],       # IssueDetector streak window (LA-7)
-        "resource_agent_state": {}, # ResourceAgent KB + weakness history
+        "spaced_repetition": {},  # SM-2 scheduler state
+        "streak_tracker": [],  # IssueDetector streak window (LA-7)
+        "resource_agent_state": {},  # ResourceAgent KB + weakness history
     }
 
     for course in courses:
@@ -259,7 +259,8 @@ def save_profile(student_name: str, profile: dict) -> bool:
                 COUNTERS.incr(PROFILE_SAVE_SERIALIZE_FAIL)
                 logger.error(
                     "Failed to serialize profile for %s: %s — dropping save",
-                    student_name, e,
+                    student_name,
+                    e,
                 )
                 return False
 
@@ -289,7 +290,8 @@ def save_profile(student_name: str, profile: dict) -> bool:
         COUNTERS.incr(PROFILE_SAVE_TIMEOUT)
         logger.error(
             "Could not acquire profile lock for %s within %ss — skipping write",
-            student_name, _LOCK_TIMEOUT_SECONDS,
+            student_name,
+            _LOCK_TIMEOUT_SECONDS,
         )
         return False
     COUNTERS.incr(PROFILE_SAVE_OK)
@@ -321,7 +323,8 @@ def load_profile(student_name: str) -> dict | None:
     except Timeout:
         logger.error(
             "Could not acquire profile lock for %s within %ss on load",
-            student_name, _LOCK_TIMEOUT_SECONDS,
+            student_name,
+            _LOCK_TIMEOUT_SECONDS,
         )
         return None
 
@@ -354,12 +357,14 @@ def list_saved_profiles() -> list[dict]:
         name = str(profile.get("name", "")).strip()
         if not name:
             continue
-        profiles.append({
-            "name": name,
-            "total_quizzes": int(profile.get("total_quizzes", 0) or 0),
-            "courses": len(profile.get("courses", {}) or {}),
-            "updated_at": os.path.getmtime(path),
-        })
+        profiles.append(
+            {
+                "name": name,
+                "total_quizzes": int(profile.get("total_quizzes", 0) or 0),
+                "courses": len(profile.get("courses", {}) or {}),
+                "updated_at": os.path.getmtime(path),
+            }
+        )
 
     return sorted(
         profiles,
@@ -367,13 +372,20 @@ def list_saved_profiles() -> list[dict]:
     )
 
 
-def record_quiz_result(profile: dict, course: str, topic: str,
-                       difficulty: int, correct: bool, question: str, answer: str,
-                       confidence: int = 3,
-                       *,
-                       correct_answer: str | None = None,
-                       explanation: str | None = None,
-                       now_fn: Callable[[], datetime] | None = None) -> dict:
+def record_quiz_result(
+    profile: dict,
+    course: str,
+    topic: str,
+    difficulty: int,
+    correct: bool,
+    question: str,
+    answer: str,
+    confidence: int = 3,
+    *,
+    correct_answer: str | None = None,
+    explanation: str | None = None,
+    now_fn: Callable[[], datetime] | None = None,
+) -> dict:
     """
     Record the result of a single quiz question.
 
@@ -453,9 +465,7 @@ def record_quiz_result(profile: dict, course: str, topic: str,
 
     # CB-2: Sync total_quizzes deterministically from course-level stats
     # so it can never drift out of sync with the actual data.
-    profile["total_quizzes"] = sum(
-        c["total_attempted"] for c in profile["courses"].values()
-    )
+    profile["total_quizzes"] = sum(c["total_attempted"] for c in profile["courses"].values())
 
     return profile
 
@@ -470,12 +480,14 @@ def record_chat_exchange(
     """Append one durable chatbot exchange to the student profile."""
     now = (now_fn or (lambda: datetime.now(timezone.utc)))()
     history = profile.setdefault("chat_history", [])
-    history.append({
-        "id": uuid.uuid4().hex,
-        "timestamp": now.isoformat(),
-        "user_message": str(user_message)[:8000],
-        "assistant_response": str(assistant_response)[:12000],
-    })
+    history.append(
+        {
+            "id": uuid.uuid4().hex,
+            "timestamp": now.isoformat(),
+            "user_message": str(user_message)[:8000],
+            "assistant_response": str(assistant_response)[:12000],
+        }
+    )
     if len(history) > MAX_CHAT_HISTORY:
         del history[:-MAX_CHAT_HISTORY]
     return profile
@@ -555,8 +567,9 @@ def reset_quiz_history(profile: dict) -> dict:
     return profile
 
 
-def record_quiz_feedback(profile: dict, quiz_id: str, flags: list[str],
-                         note: str | None = None) -> bool:
+def record_quiz_feedback(
+    profile: dict, quiz_id: str, flags: list[str], note: str | None = None
+) -> bool:
     """Attach student feedback flags to a previously-recorded quiz_history entry.
 
     ``flags`` is a list drawn from the controlled vocabulary
@@ -618,11 +631,13 @@ def get_weakest_topics(profile: dict, course: str, top_n: int = 3) -> list[dict]
         accuracy = correct / attempted
         if accuracy >= 0.8:
             continue
-        topic_stats.append({
-            "topic": topic_name,
-            "accuracy": accuracy,
-            "attempted": attempted,
-        })
+        topic_stats.append(
+            {
+                "topic": topic_name,
+                "accuracy": accuracy,
+                "attempted": attempted,
+            }
+        )
 
     # Sort by accuracy (lowest first), then by fewer attempts
     topic_stats.sort(key=lambda x: (x["accuracy"], x["attempted"]))
@@ -643,11 +658,13 @@ def get_strongest_topics(profile: dict, course: str, top_n: int = 3) -> list[dic
         accuracy = correct / attempted
         if accuracy < 0.8:
             continue
-        topic_stats.append({
-            "topic": topic_name,
-            "accuracy": accuracy,
-            "attempted": attempted,
-        })
+        topic_stats.append(
+            {
+                "topic": topic_name,
+                "accuracy": accuracy,
+                "attempted": attempted,
+            }
+        )
 
     topic_stats.sort(
         key=lambda item: (

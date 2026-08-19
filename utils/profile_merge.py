@@ -42,7 +42,6 @@ wrapper around the merge, which is also easier to read.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +49,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # quiz_history dedupe
 # ---------------------------------------------------------------------------
+
 
 def entry_key(entry: dict) -> str:
     """
@@ -69,6 +69,7 @@ def entry_key(entry: dict) -> str:
 # ---------------------------------------------------------------------------
 # Aggregate replay  (course/topic counters)
 # ---------------------------------------------------------------------------
+
 
 def ensure_course(profile: dict, course: str) -> dict:
     """Initialise a course slot on ``profile`` if missing; return it.
@@ -123,8 +124,7 @@ def apply_entry_to_aggregates(profile: dict, entry: dict) -> None:
         topics = c.setdefault("topics", {})
         t = topics.setdefault(
             topic,
-            {"correct": 0, "attempted": 0,
-             "current_difficulty": entry.get("difficulty", 2)},
+            {"correct": 0, "attempted": 0, "current_difficulty": entry.get("difficulty", 2)},
         )
         t["attempted"] = int(t.get("attempted", 0)) + 1
         if correct:
@@ -138,6 +138,7 @@ def apply_entry_to_aggregates(profile: dict, entry: dict) -> None:
 # ---------------------------------------------------------------------------
 # ResourceAgent state merge
 # ---------------------------------------------------------------------------
+
 
 def merge_resource_agent_state(in_memory: dict, on_disk: dict) -> dict:
     """
@@ -162,8 +163,7 @@ def merge_resource_agent_state(in_memory: dict, on_disk: dict) -> dict:
         return on_disk
 
     merged_kb: dict[str, dict] = {}
-    for source in (on_disk.get("knowledge_base") or {},
-                   in_memory.get("knowledge_base") or {}):
+    for source in (on_disk.get("knowledge_base") or {}, in_memory.get("knowledge_base") or {}):
         for topic, data in source.items():
             existing = merged_kb.get(topic)
             if existing is None:
@@ -176,8 +176,7 @@ def merge_resource_agent_state(in_memory: dict, on_disk: dict) -> dict:
 
     seen: set[tuple] = set()
     merged_weak: list[dict] = []
-    for source in (on_disk.get("weakness_history") or [],
-                   in_memory.get("weakness_history") or []):
+    for source in (on_disk.get("weakness_history") or [], in_memory.get("weakness_history") or []):
         for entry in source:
             key = (
                 entry.get("topic"),
@@ -233,7 +232,8 @@ def merge_chat_history(in_memory: dict, on_disk: dict, *, limit: int = 100) -> N
         str(on_disk.get("chat_history_reset_at", "")),
     )
     memory_history = [
-        item for item in in_memory.get("chat_history", []) or []
+        item
+        for item in in_memory.get("chat_history", []) or []
         if isinstance(item, dict) and str(item.get("timestamp", "")) > reset_at
     ]
     seen = {
@@ -257,6 +257,7 @@ def merge_chat_history(in_memory: dict, on_disk: dict, *, limit: int = 100) -> N
 # ---------------------------------------------------------------------------
 # Top-level merge
 # ---------------------------------------------------------------------------
+
 
 def merge_profiles(in_memory: dict, on_disk: dict | None) -> dict:
     """
@@ -310,10 +311,7 @@ def merge_profiles(in_memory: dict, on_disk: dict | None) -> dict:
         in_memory["quiz_history"].sort(key=lambda e: e.get("timestamp", ""))
 
         in_memory["total_quizzes"] = max(
-            sum(
-                int(c.get("total_attempted", 0))
-                for c in in_memory.get("courses", {}).values()
-            ),
+            sum(int(c.get("total_attempted", 0)) for c in in_memory.get("courses", {}).values()),
             int(on_disk.get("total_quizzes", 0)),
         )
 

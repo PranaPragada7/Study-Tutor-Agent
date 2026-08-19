@@ -26,18 +26,18 @@ Run with: python tests/simulate_students.py
       or: pytest tests/simulate_students.py -v
 """
 
-import sys
-import os
 import csv
+import os
 import random
+import sys
 from datetime import datetime
 
 # Make imports work from project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from agents.adaptive_engine import AdaptiveEngine
-from utils.spaced_repetition import SpacedRepetitionScheduler
 from utils.issue_detector import IssueDetector
+from utils.spaced_repetition import SpacedRepetitionScheduler
 from utils.student_profile import create_profile, record_quiz_result
 
 # ─── Output setup ───
@@ -54,6 +54,7 @@ NUM_QUESTIONS = 30  # Per persona
 
 # ─── Simulated Student Personas ───
 
+
 class SimulatedStudent:
     """Base class for simulated students.
 
@@ -61,8 +62,7 @@ class SimulatedStudent:
     so that ``simulate_students.py`` tests are 100 % reproducible.
     """
 
-    def __init__(self, name: str, description: str,
-                 rng: random.Random | None = None):
+    def __init__(self, name: str, description: str, rng: random.Random | None = None):
         self.name = name
         self.description = description
         self.question_number = 0
@@ -80,9 +80,9 @@ class StrugglingStudent(SimulatedStudent):
     """Gets most questions wrong, especially on specific weak topics."""
 
     def __init__(self, rng: random.Random | None = None):
-        super().__init__("Struggling Sam",
-                         "Low accuracy, weak on Recursion and Algorithms",
-                         rng=rng)
+        super().__init__(
+            "Struggling Sam", "Low accuracy, weak on Recursion and Algorithms", rng=rng
+        )
         self.weak_topics = {"Recursion", "Algorithms"}
 
     def answer(self, topic: str, difficulty: int) -> tuple[bool, int]:
@@ -100,9 +100,7 @@ class ImprovingStudent(SimulatedStudent):
     """Starts weak but gradually improves."""
 
     def __init__(self, rng: random.Random | None = None):
-        super().__init__("Improving Iris",
-                         "Accuracy improves from 30% to 80% over time",
-                         rng=rng)
+        super().__init__("Improving Iris", "Accuracy improves from 30% to 80% over time", rng=rng)
 
     def answer(self, topic: str, difficulty: int) -> tuple[bool, int]:
         self.question_number += 1
@@ -118,9 +116,7 @@ class RandomStudent(SimulatedStudent):
     """Answers randomly — control baseline."""
 
     def __init__(self, rng: random.Random | None = None):
-        super().__init__("Random Randy",
-                         "50/50 chance on every question (control)",
-                         rng=rng)
+        super().__init__("Random Randy", "50/50 chance on every question (control)", rng=rng)
 
     def answer(self, topic: str, difficulty: int) -> tuple[bool, int]:
         self.question_number += 1
@@ -133,9 +129,9 @@ class StrongStudent(SimulatedStudent):
     """Gets most questions right — tests difficulty scaling up."""
 
     def __init__(self, rng: random.Random | None = None):
-        super().__init__("Strong Steve",
-                         "High accuracy, should trigger difficulty increase",
-                         rng=rng)
+        super().__init__(
+            "Strong Steve", "High accuracy, should trigger difficulty increase", rng=rng
+        )
 
     def answer(self, topic: str, difficulty: int) -> tuple[bool, int]:
         self.question_number += 1
@@ -149,9 +145,9 @@ class ConfusedStudent(SimulatedStudent):
     """High confidence but often wrong — tests misconception detection."""
 
     def __init__(self, rng: random.Random | None = None):
-        super().__init__("Confused Casey",
-                         "Confident but wrong — should trigger misconception alerts",
-                         rng=rng)
+        super().__init__(
+            "Confused Casey", "Confident but wrong — should trigger misconception alerts", rng=rng
+        )
 
     def answer(self, topic: str, difficulty: int) -> tuple[bool, int]:
         self.question_number += 1
@@ -162,9 +158,10 @@ class ConfusedStudent(SimulatedStudent):
 
 # ─── Simulation Runner ───
 
-def run_simulation(student: SimulatedStudent,
-                   num_questions: int = NUM_QUESTIONS,
-                   engine_seed: int | None = None) -> list[dict]:
+
+def run_simulation(
+    student: SimulatedStudent, num_questions: int = NUM_QUESTIONS, engine_seed: int | None = None
+) -> list[dict]:
     """
     Run a full simulation for one student persona.
 
@@ -185,7 +182,11 @@ def run_simulation(student: SimulatedStudent,
 
     # Add topics to profile
     for t in TOPICS:
-        profile["courses"][COURSE]["topics"][t] = {"correct": 0, "attempted": 0, "current_difficulty": 2}
+        profile["courses"][COURSE]["topics"][t] = {
+            "correct": 0,
+            "attempted": 0,
+            "current_difficulty": 2,
+        }
 
     metrics = []
     window_size = 5
@@ -205,8 +206,14 @@ def run_simulation(student: SimulatedStudent,
 
         # Record in profile for issue detection
         profile = record_quiz_result(
-            profile, COURSE, topic, difficulty, correct,
-            f"Q{q_num} about {topic}", "A" if correct else "B", confidence
+            profile,
+            COURSE,
+            topic,
+            difficulty,
+            correct,
+            f"Q{q_num} about {topic}",
+            "A" if correct else "B",
+            confidence,
         )
 
         # Run issue detection
@@ -219,20 +226,22 @@ def run_simulation(student: SimulatedStudent,
         window_accuracy = sum(recent_correct) / len(recent_correct)
 
         # Record metrics
-        metrics.append({
-            "student": student.name,
-            "question_num": q_num,
-            "topic": topic,
-            "difficulty": difficulty,
-            "correct": correct,
-            "confidence": confidence,
-            "window_accuracy": round(window_accuracy, 3),
-            "epsilon": round(engine.epsilon, 4),
-            "sm2_quality": sm2_quality,
-            "issues_detected": len(new_issues),
-            "issue_types": "|".join([i.issue_type for i in new_issues]) if new_issues else "",
-            "recommended_diff": engine.recommend_difficulty(topic),
-        })
+        metrics.append(
+            {
+                "student": student.name,
+                "question_num": q_num,
+                "topic": topic,
+                "difficulty": difficulty,
+                "correct": correct,
+                "confidence": confidence,
+                "window_accuracy": round(window_accuracy, 3),
+                "epsilon": round(engine.epsilon, 4),
+                "sm2_quality": sm2_quality,
+                "issues_detected": len(new_issues),
+                "issue_types": "|".join([i.issue_type for i in new_issues]) if new_issues else "",
+                "recommended_diff": engine.recommend_difficulty(topic),
+            }
+        )
 
     return metrics
 
@@ -309,57 +318,73 @@ def generate_report(metrics: list[dict]) -> str:
         # Issues detected
         total_issues = sum(d["issues_detected"] for d in data)
 
-        lines.extend([
-            f"--- {name} ---",
-            f"  Overall accuracy:       {accuracy:.1f}%",
-            f"  First half accuracy:    {first_half_acc:.1f}%",
-            f"  Second half accuracy:   {second_half_acc:.1f}%",
-            f"  Average difficulty:     {avg_diff:.1f}/5",
-            f"  Difficulty trend:       {first_diff:.1f} → {last_diff:.1f}",
-            f"  Issues detected:        {total_issues}",
-            "",
-        ])
+        lines.extend(
+            [
+                f"--- {name} ---",
+                f"  Overall accuracy:       {accuracy:.1f}%",
+                f"  First half accuracy:    {first_half_acc:.1f}%",
+                f"  Second half accuracy:   {second_half_acc:.1f}%",
+                f"  Average difficulty:     {avg_diff:.1f}/5",
+                f"  Difficulty trend:       {first_diff:.1f} → {last_diff:.1f}",
+                f"  Issues detected:        {total_issues}",
+                "",
+            ]
+        )
 
         # Adaptation analysis
         if name == "Struggling Sam":
             if last_diff < first_diff:
-                lines.append(f"  ✅ PASS: Difficulty decreased for struggling student ({first_diff:.1f}→{last_diff:.1f})")
+                lines.append(
+                    f"  ✅ PASS: Difficulty decreased for struggling student ({first_diff:.1f}→{last_diff:.1f})"
+                )
             else:
-                lines.append(f"  ⚠️  CHECK: Difficulty did not decrease enough ({first_diff:.1f}→{last_diff:.1f})")
+                lines.append(
+                    f"  ⚠️  CHECK: Difficulty did not decrease enough ({first_diff:.1f}→{last_diff:.1f})"
+                )
 
         elif name == "Improving Iris":
             if second_half_acc > first_half_acc:
-                lines.append(f"  ✅ PASS: Accuracy improved over time ({first_half_acc:.1f}%→{second_half_acc:.1f}%)")
+                lines.append(
+                    f"  ✅ PASS: Accuracy improved over time ({first_half_acc:.1f}%→{second_half_acc:.1f}%)"
+                )
             else:
-                lines.append(f"  ⚠️  CHECK: Accuracy did not improve as expected")
+                lines.append("  ⚠️  CHECK: Accuracy did not improve as expected")
 
         elif name == "Strong Steve":
             if last_diff > first_diff:
-                lines.append(f"  ✅ PASS: Difficulty increased for strong student ({first_diff:.1f}→{last_diff:.1f})")
+                lines.append(
+                    f"  ✅ PASS: Difficulty increased for strong student ({first_diff:.1f}→{last_diff:.1f})"
+                )
             else:
-                lines.append(f"  ⚠️  CHECK: Difficulty did not increase enough ({first_diff:.1f}→{last_diff:.1f})")
+                lines.append(
+                    f"  ⚠️  CHECK: Difficulty did not increase enough ({first_diff:.1f}→{last_diff:.1f})"
+                )
 
         elif name == "Confused Casey":
             if total_issues > 0:
-                lines.append(f"  ✅ PASS: Issues detected for confused student ({total_issues} issues)")
+                lines.append(
+                    f"  ✅ PASS: Issues detected for confused student ({total_issues} issues)"
+                )
             else:
-                lines.append(f"  ⚠️  CHECK: No issues detected for student with misconceptions")
+                lines.append("  ⚠️  CHECK: No issues detected for student with misconceptions")
 
         elif name == "Random Randy":
-            lines.append(f"  📊 BASELINE: Control student (random answers)")
+            lines.append("  📊 BASELINE: Control student (random answers)")
 
         lines.append("")
 
     # Overall summary
-    lines.extend([
-        "=" * 60,
-        "OVERALL EVALUATION SUMMARY",
-        "=" * 60,
-        f"  Total personas tested:  {len(students)}",
-        f"  Total questions run:    {len(metrics)}",
-        f"  Total issues detected:  {sum(d['issues_detected'] for d in metrics)}",
-        "",
-    ])
+    lines.extend(
+        [
+            "=" * 60,
+            "OVERALL EVALUATION SUMMARY",
+            "=" * 60,
+            f"  Total personas tested:  {len(students)}",
+            f"  Total questions run:    {len(metrics)}",
+            f"  Total issues detected:  {sum(d['issues_detected'] for d in metrics)}",
+            "",
+        ]
+    )
 
     # Count passes
     passes = 0
@@ -401,6 +426,7 @@ def generate_report(metrics: list[dict]) -> str:
 
 # ─── Pytest-compatible test functions ───
 
+
 def test_simulation_determinism():
     """Running the same seed twice must produce identical metrics."""
     rng1 = random.Random(999)
@@ -440,8 +466,10 @@ def test_strong_student_difficulty_scales():
 # ─── Main ───
 
 if __name__ == "__main__":
-    import io, sys as _sys
-    _sys.stdout = io.TextIOWrapper(_sys.stdout.buffer, encoding='utf-8', errors='replace')
+    import io
+    import sys as _sys
+
+    _sys.stdout = io.TextIOWrapper(_sys.stdout.buffer, encoding="utf-8", errors="replace")
 
     os.makedirs(EVAL_DIR, exist_ok=True)
     os.makedirs(PERSONA_PROFILE_DIR, exist_ok=True)
@@ -450,6 +478,7 @@ if __name__ == "__main__":
     # pollute data/ next to real student JSONs. The simulation reuses
     # create_profile() which writes via student_profile.DATA_DIR.
     import utils.student_profile as _sp
+
     _sp.DATA_DIR = PERSONA_PROFILE_DIR
 
     # Seed for reproducible evaluation results

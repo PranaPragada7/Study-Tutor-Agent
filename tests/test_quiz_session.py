@@ -3,8 +3,8 @@
 from utils.quiz_session import (
     MIN_QUESTIONS_BEFORE_EVALUATION,
     build_persisted_quiz_session,
-    build_quiz_session_from_history,
     build_quiz_session_feedback,
+    build_quiz_session_from_history,
     build_quiz_session_report,
     build_quiz_session_summary,
     can_evaluate_session,
@@ -165,16 +165,18 @@ def test_persisted_quiz_session_snapshot_can_be_stored_once():
     ]
     profile = {"quiz_sessions": [], "session_count": 0}
 
-    resource_materials = [{
-        "topic": "Functions",
-        "title": "Review Functions",
-        "explanation": "Function review material",
-        "rationale": {
-            "why_shown": "This material is shown because Functions was missed.",
-            "quiz_evidence": "The student answered a Functions question wrong.",
-            "generation_source": "Generated after evaluating the session.",
-        },
-    }]
+    resource_materials = [
+        {
+            "topic": "Functions",
+            "title": "Review Functions",
+            "explanation": "Function review material",
+            "rationale": {
+                "why_shown": "This material is shown because Functions was missed.",
+                "quiz_evidence": "The student answered a Functions question wrong.",
+                "generation_source": "Generated after evaluating the session.",
+            },
+        }
+    ]
     snapshot = build_persisted_quiz_session(
         results,
         course="CS101",

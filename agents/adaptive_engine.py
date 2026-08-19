@@ -139,8 +139,9 @@ class AdaptiveEngine:
 
         return best_choice
 
-    def _compute_arm_value(self, topic: str, difficulty: int,
-                           log_total: float | None = None) -> float:
+    def _compute_arm_value(
+        self, topic: str, difficulty: int, log_total: float | None = None
+    ) -> float:
         """
         Compute the "learning value" of quizzing this topic at this difficulty.
 
@@ -208,9 +209,7 @@ class AdaptiveEngine:
                 cold_multiplier = 1.0 - 0.5 * weakness_bonus
             else:
                 cold_multiplier = 1.0
-            cold_exploration = (
-                0.2 * math.sqrt(2 * log_total / 0.5) * cold_multiplier
-            )
+            cold_exploration = 0.2 * math.sqrt(2 * log_total / 0.5) * cold_multiplier
             return zpd_score + cold_exploration + weakness_bonus
 
         # With the new reward shape, avg reward in [0, 1] approximates the
@@ -302,8 +301,15 @@ class AdaptiveEngine:
         accuracy = stats["correct"] / stats["total"]
         return 1.0 - accuracy
 
-    def update(self, topic: str, difficulty: int, correct: bool,
-               confidence: int = 3, *, _decay: bool = True) -> None:
+    def update(
+        self,
+        topic: str,
+        difficulty: int,
+        correct: bool,
+        confidence: int = 3,
+        *,
+        _decay: bool = True,
+    ) -> None:
         """
         Update the engine after a quiz question is answered.
 
@@ -400,11 +406,11 @@ class AdaptiveEngine:
         if accuracy >= 0.8:
             return 4  # Student is doing well -> increase
         elif accuracy >= 0.6:
-            return 3            # Solid -> stay moderate
+            return 3  # Solid -> stay moderate
         elif accuracy >= 0.4:
-            return 2            # Struggling -> keep easier
+            return 2  # Struggling -> keep easier
         else:
-            return 1            # Really struggling -> go easy
+            return 1  # Really struggling -> go easy
 
     def explain_recommendation(
         self,

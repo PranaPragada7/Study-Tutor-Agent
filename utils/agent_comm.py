@@ -39,8 +39,9 @@ class MessageType(Enum):
 class AgentMessage:
     """A message passed between agents."""
 
-    def __init__(self, sender: str, receiver: str, msg_type: MessageType,
-                 content: dict, priority: int = 1):
+    def __init__(
+        self, sender: str, receiver: str, msg_type: MessageType, content: dict, priority: int = 1
+    ):
         """
         Args:
             sender: Name of the sending agent (e.g., "TutorAgent")
@@ -152,7 +153,9 @@ class MessageBus:
             logger.error(
                 "MessageBus dispatch depth %d exceeded — dropping message %s from %s "
                 "(likely a callback cycle)",
-                self._MAX_DISPATCH_DEPTH, message.id, message.sender,
+                self._MAX_DISPATCH_DEPTH,
+                message.id,
+                message.sender,
             )
             return
 
@@ -182,14 +185,17 @@ class MessageBus:
                     # Record the failure as a log entry so it shows up in
                     # Diagnostics, but don't let it crash the sender.
                     with self._lock:
-                        self.message_log.append({
-                            "error": f"Callback failed for {receiver}: {str(e)}",
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                        })
+                        self.message_log.append(
+                            {
+                                "error": f"Callback failed for {receiver}: {str(e)}",
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            }
+                        )
                         self._trim_log_locked()
                     logger.exception(
                         "Callback failed while handling message %s for %s",
-                        message.id, receiver,
+                        message.id,
+                        receiver,
                     )
         finally:
             self._local.depth = depth

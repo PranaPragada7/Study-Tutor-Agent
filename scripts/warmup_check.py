@@ -18,6 +18,7 @@ Exit codes
     0  real Claude question generated
     1  live Claude validation failed
 """
+
 from __future__ import annotations
 
 import copy
@@ -30,6 +31,7 @@ sys.path.insert(0, str(REPO_ROOT))
 # Load .env so ANTHROPIC_API_KEY is in os.environ before anthropic SDK init.
 try:
     from dotenv import load_dotenv  # type: ignore[import-not-found]
+
     load_dotenv(REPO_ROOT / ".env", override=False)
 except ImportError:
     # python-dotenv not installed — preflight will catch this; warmup
@@ -55,8 +57,8 @@ def warmup() -> int:
     # Imports deferred so a missing dep produces a readable error rather
     # than a top-of-file ImportError.
     try:
-        from utils.student_profile import load_profile
         from agents.tutor_agent import TutorAgent
+        from utils.student_profile import load_profile
         from utils.telemetry import COUNTERS, LLM_FALLBACK_USED, QUIZ_FALLBACK_USED
     except ImportError as exc:
         print(f"❌ Could not import project modules: {exc}")

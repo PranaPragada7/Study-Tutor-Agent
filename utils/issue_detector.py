@@ -30,10 +30,20 @@ from filelock import FileLock, Timeout
 
 from config import (
     COOLDOWN_QUESTION_WINDOW as _COOLDOWN_QUESTION_WINDOW,
+)
+from config import (
     COOLDOWN_TIME_SECONDS as _COOLDOWN_TIME_SECONDS,
+)
+from config import (
     LOCK_TIMEOUT_SECONDS as _LOCK_TIMEOUT_SECONDS,
+)
+from config import (
     MAX_API_ERRORS as _MAX_API_ERRORS,
+)
+from config import (
     MAX_ISSUES as _MAX_ISSUES,
+)
+from config import (
     STALLED_WINDOW_SIZE as _STALLED_WINDOW_SIZE,
 )
 
@@ -44,10 +54,19 @@ LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "logs")
 
 class Issue:
     """Represents a detected issue."""
-    def __init__(self, issue_type: str, severity: str, message: str,
-                 suggested_fix: str, details: dict | None = None):
-        self.issue_type = issue_type  # accuracy_drop, stalled, difficulty_mismatch, api_error, topic_imbalance
-        self.severity = severity      # low, medium, high, critical
+
+    def __init__(
+        self,
+        issue_type: str,
+        severity: str,
+        message: str,
+        suggested_fix: str,
+        details: dict | None = None,
+    ):
+        self.issue_type = (
+            issue_type  # accuracy_drop, stalled, difficulty_mismatch, api_error, topic_imbalance
+        )
+        self.severity = severity  # low, medium, high, critical
         self.message = message
         self.suggested_fix = suggested_fix
         self.details = details or {}
@@ -79,9 +98,7 @@ class IssueDetector:
         self.issues: list[Issue] = []
         self.api_errors: list[dict] = []
         # LA-7: Accept persisted streak data so the tracker survives restarts.
-        self._streak_tracker: list[bool] = (
-            list(streak_data[-20:]) if streak_data else []
-        )
+        self._streak_tracker: list[bool] = list(streak_data[-20:]) if streak_data else []
         # Alert cooldown — tracks when each issue type last fired.
         # {issue_type: {"question_number": int, "timestamp": datetime}}
         self._last_triggered: dict[str, dict] = {}
@@ -128,8 +145,9 @@ class IssueDetector:
     # Core analysis entry point
     # ------------------------------------------------------------------
 
-    def analyze_quiz_result(self, profile: dict, course: str, topic: str,
-                            difficulty: int, correct: bool) -> list[Issue]:
+    def analyze_quiz_result(
+        self, profile: dict, course: str, topic: str, difficulty: int, correct: bool
+    ) -> list[Issue]:
         """
         Run all detection checks after a quiz answer.
         Returns list of newly detected issues.
@@ -195,7 +213,9 @@ class IssueDetector:
             issue_type="api_error",
             severity=severity,
             message=f"API error: {error_type} -- {details}",
-            suggested_fix="Retry with exponential backoff" if not recovered else "Recovered with fallback",
+            suggested_fix="Retry with exponential backoff"
+            if not recovered
+            else "Recovered with fallback",
             details=error_entry,
         )
         self.issues.append(issue)
@@ -221,7 +241,7 @@ class IssueDetector:
                     severity="high",
                     message="Student has answered 5 questions wrong in a row.",
                     suggested_fix="Reduce difficulty by 2 levels and switch to a different topic. "
-                                  "Offer encouragement and ask if the student wants to review fundamentals.",
+                    "Offer encouragement and ask if the student wants to review fundamentals.",
                     details={"wrong_streak": 5},
                 )
 
@@ -243,8 +263,9 @@ class IssueDetector:
 
         return None
 
-    def _check_difficulty_mismatch(self, profile: dict, course: str, topic: str,
-                                    difficulty: int, correct: bool) -> Issue | None:
+    def _check_difficulty_mismatch(
+        self, profile: dict, course: str, topic: str, difficulty: int, correct: bool
+    ) -> Issue | None:
         """Detect if difficulty is too easy or too hard for the student."""
         if course not in profile["courses"]:
             return None
@@ -268,7 +289,7 @@ class IssueDetector:
             return Issue(
                 issue_type="difficulty_mismatch",
                 severity="low",
-                message=f"Topic '{topic}' may be too easy ({accuracy*100:.0f}% accuracy at difficulty {difficulty}).",
+                message=f"Topic '{topic}' may be too easy ({accuracy * 100:.0f}% accuracy at difficulty {difficulty}).",
                 suggested_fix="Increase difficulty to challenge the student and promote deeper learning.",
                 details={"accuracy": accuracy, "difficulty": difficulty, "topic": topic},
             )
@@ -282,7 +303,7 @@ class IssueDetector:
             return Issue(
                 issue_type="difficulty_mismatch",
                 severity="medium",
-                message=f"Topic '{topic}' may be too hard ({accuracy*100:.0f}% accuracy at difficulty {difficulty}).",
+                message=f"Topic '{topic}' may be too hard ({accuracy * 100:.0f}% accuracy at difficulty {difficulty}).",
                 suggested_fix="Decrease difficulty and provide more foundational questions first.",
                 details={"accuracy": accuracy, "difficulty": difficulty, "topic": topic},
             )
@@ -322,11 +343,11 @@ class IssueDetector:
                 issue_type="stalled_learning",
                 severity="medium",
                 message=f"Learning appears stalled for {course}. "
-                        f"Last {half} Qs: {second_acc*100:.0f}%, "
-                        f"previous {half} Qs: {first_acc*100:.0f}%.",
+                f"Last {half} Qs: {second_acc * 100:.0f}%, "
+                f"previous {half} Qs: {first_acc * 100:.0f}%.",
                 suggested_fix="Change study strategy: try different question formats, "
-                              "suggest the student explain concepts in their own words, "
-                              "or focus on prerequisite topics.",
+                "suggest the student explain concepts in their own words, "
+                "or focus on prerequisite topics.",
                 details={
                     "first_half_accuracy": round(first_acc, 3),
                     "second_half_accuracy": round(second_acc, 3),
@@ -354,19 +375,18 @@ class IssueDetector:
         cluster doesn't keep re-firing.
         """
         history = profile.get("quiz_history", [])
-        recent = [e for e in history[-_STALLED_WINDOW_SIZE:]
-                  if isinstance(e.get("feedback_flags"), list)]
+        recent = [
+            e for e in history[-_STALLED_WINDOW_SIZE:] if isinstance(e.get("feedback_flags"), list)
+        ]
 
         truthiness_flags = {"wrong_answer", "unclear_question"}
         difficulty_flags = {"too_easy", "too_hard"}
 
         truthiness_count = sum(
-            1 for e in recent
-            if any(f in truthiness_flags for f in e.get("feedback_flags", []))
+            1 for e in recent if any(f in truthiness_flags for f in e.get("feedback_flags", []))
         )
         difficulty_count = sum(
-            1 for e in recent
-            if any(f in difficulty_flags for f in e.get("feedback_flags", []))
+            1 for e in recent if any(f in difficulty_flags for f in e.get("feedback_flags", []))
         )
 
         if truthiness_count >= 3:
@@ -400,8 +420,7 @@ class IssueDetector:
                 issue_type="feedback_pattern",
                 severity="low",
                 message=(
-                    f"Student flagged {difficulty_count} recent quizzes as "
-                    f"too easy or too hard."
+                    f"Student flagged {difficulty_count} recent quizzes as too easy or too hard."
                 ),
                 suggested_fix=(
                     "The bandit's recommended difficulty may be lagging the "
@@ -463,8 +482,8 @@ class IssueDetector:
                 issue_type="topic_imbalance",
                 severity="low",
                 message=f"Topics are unevenly covered in the last {_STALLED_WINDOW_SIZE} questions. "
-                        f"'{neglected[0]}' has only {min_attempts} questions vs "
-                        f"{max_attempts} for the most-quizzed topic.",
+                f"'{neglected[0]}' has only {min_attempts} questions vs "
+                f"{max_attempts} for the most-quizzed topic.",
                 suggested_fix=f"Schedule more questions on: {', '.join(neglected)}",
                 details={"topic_attempts": recent_attempts},
             )
@@ -480,10 +499,7 @@ class IssueDetector:
         severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
         min_level = severity_order.get(severity_min, 0)
 
-        return [
-            i.to_dict() for i in self.issues
-            if severity_order.get(i.severity, 0) >= min_level
-        ]
+        return [i.to_dict() for i in self.issues if severity_order.get(i.severity, 0) >= min_level]
 
     def get_recent_issues(self, n: int = 5) -> list[dict]:
         """Get the N most recent issues."""
@@ -518,7 +534,7 @@ class IssueDetector:
         behind on a crash.
         """
         os.makedirs(LOG_DIR, exist_ok=True)
-        safe_name = re.sub(r'[^a-zA-Z0-9 _-]', '', student_name).strip().lower().replace(" ", "_")
+        safe_name = re.sub(r"[^a-zA-Z0-9 _-]", "", student_name).strip().lower().replace(" ", "_")
         if not safe_name:
             return  # nothing sensible to write
         log_path = os.path.join(LOG_DIR, f"{safe_name}_issues.json")
@@ -567,7 +583,8 @@ class IssueDetector:
         except Timeout:
             logger.error(
                 "Could not acquire issue-log lock for %s within %ss -- skipping write",
-                student_name, _LOCK_TIMEOUT_SECONDS,
+                student_name,
+                _LOCK_TIMEOUT_SECONDS,
             )
 
     # ------------------------------------------------------------------
@@ -588,6 +605,8 @@ class IssueDetector:
 
         guidance_parts: list[str] = []
         for issue in high_issues:
-            guidance_parts.append(f"DETECTED ISSUE: {issue.message}\nSUGGESTED ACTION: {issue.suggested_fix}")
+            guidance_parts.append(
+                f"DETECTED ISSUE: {issue.message}\nSUGGESTED ACTION: {issue.suggested_fix}"
+            )
 
         return "\n\n".join(guidance_parts)

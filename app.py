@@ -11,13 +11,34 @@ Features:
   5. Diagnostics — Issue detection, agent communication log, RL state
 """
 
-import streamlit as st
-import sys
 import os
+import sys
+
+import streamlit as st
 
 # Make imports work from project root
 sys.path.insert(0, os.path.dirname(__file__))
 
+from agents.resource_agent import ResourceAgent
+from agents.tutor_agent import TutorAgent
+from ui.components import (
+    render_quiz_session_snapshot as _render_quiz_session_snapshot,
+)
+from ui.components import (
+    render_resource_material_suggestions as _render_resource_material_suggestions,
+)
+from ui.theme import render_app_shell
+from utils.agent_comm import MessageBus
+from utils.quiz_session import (
+    MIN_QUESTIONS_BEFORE_EVALUATION,
+    build_persisted_quiz_session,
+    build_quiz_session_feedback,
+    build_quiz_session_from_history,
+    build_quiz_session_report,
+    build_quiz_session_summary,
+    can_evaluate_session,
+    store_quiz_session_report,
+)
 from utils.student_profile import (
     clear_chat_history,
     create_profile,
@@ -29,23 +50,11 @@ from utils.student_profile import (
     reset_quiz_history,
     save_profile,
 )
-from utils.agent_comm import MessageBus
-from utils.quiz_session import (
-    MIN_QUESTIONS_BEFORE_EVALUATION,
-    build_quiz_session_feedback,
-    build_persisted_quiz_session,
-    build_quiz_session_from_history,
-    build_quiz_session_report,
-    build_quiz_session_summary,
-    can_evaluate_session,
-    store_quiz_session_report,
-)
-from utils.telemetry import COUNTERS, COUNTER_DISPLAY_ORDER
-from agents.tutor_agent import TutorAgent
-from agents.resource_agent import ResourceAgent
+from utils.telemetry import COUNTER_DISPLAY_ORDER, COUNTERS
 
 try:
     from anthropic import Anthropic
+
     _HAS_ANTHROPIC = True
 except ImportError:
     _HAS_ANTHROPIC = False
@@ -61,292 +70,7 @@ st.set_page_config(
 )
 
 
-def inject_app_styles() -> None:
-    """Apply the Study Tutor paper-and-ink visual system."""
-    st.markdown(
-        """
-        <style>
-        :root {
-            --paper: #fffaf0;
-            --paper-deep: #f7f2e8;
-            --ink: #17223b;
-            --muted: #667085;
-            --rule: #d8cdbb;
-            --coral: #e4573d;
-            --coral-soft: #fde8df;
-            --gold: #f2b84b;
-            --navy: #17223b;
-        }
-
-        .stApp {
-            background-color: var(--paper-deep);
-            background-image:
-                linear-gradient(rgba(23, 34, 59, 0.035) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(23, 34, 59, 0.035) 1px, transparent 1px);
-            background-size: 28px 28px;
-            color: var(--ink);
-        }
-
-        .block-container {
-            padding-top: 1.4rem;
-            padding-bottom: 3rem;
-            max-width: 1320px;
-        }
-
-        section[data-testid="stSidebar"] {
-            background: var(--navy);
-            border-right: 4px solid var(--gold);
-        }
-
-        section[data-testid="stSidebar"] * {
-            color: #f8fafc;
-        }
-
-        section[data-testid="stSidebar"] [data-baseweb="select"] *,
-        section[data-testid="stSidebar"] input,
-        section[data-testid="stSidebar"] textarea {
-            color: var(--ink) !important;
-        }
-
-        section[data-testid="stSidebar"] .stButton > button {
-            background: #fffaf0;
-            color: var(--ink);
-            border-color: rgba(255, 255, 255, 0.22);
-        }
-
-        section[data-testid="stSidebar"] .stButton > button * {
-            color: var(--ink) !important;
-        }
-
-        section[data-testid="stSidebar"] hr {
-            border-color: rgba(255, 255, 255, 0.16);
-        }
-
-        .app-header {
-            background: var(--navy);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 22px 22px 22px 6px;
-            padding: 28px 30px;
-            margin-bottom: 22px;
-            display: flex;
-            justify-content: space-between;
-            gap: 18px;
-            align-items: center;
-            box-shadow: 0 14px 34px rgba(23, 34, 59, 0.16);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .app-header::after {
-            content: "";
-            position: absolute;
-            width: 170px;
-            height: 170px;
-            right: -55px;
-            top: -75px;
-            border: 28px solid rgba(242, 184, 75, 0.18);
-            border-radius: 50%;
-        }
-
-        .app-header > * {
-            position: relative;
-            z-index: 1;
-        }
-
-        .app-kicker {
-            color: var(--gold);
-            font-size: 0.75rem;
-            font-weight: 800;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .app-title {
-            margin: 0;
-            color: #fffaf0 !important;
-            font-family: Georgia, "Times New Roman", serif;
-            font-size: clamp(2.15rem, 4vw, 3.35rem);
-            line-height: 1;
-            font-weight: 700;
-            letter-spacing: -0.035em;
-        }
-
-        .app-subtitle {
-            margin: 11px 0 0 0;
-            color: #cbd5e1;
-            font-size: 1rem;
-        }
-
-        .status-row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-
-        .status-pill {
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 999px;
-            padding: 7px 11px;
-            color: #f8fafc;
-            font-size: 0.83rem;
-            font-weight: 650;
-            white-space: nowrap;
-            backdrop-filter: blur(8px);
-        }
-
-        .status-pill.accent {
-            border-color: rgba(242, 184, 75, 0.55);
-            background: rgba(242, 184, 75, 0.16);
-            color: #ffe6a6;
-        }
-
-        div[data-testid="stMetric"] {
-            background: var(--paper);
-            border: 1px solid var(--rule);
-            border-top: 4px solid var(--coral);
-            border-radius: 4px 14px 14px 14px;
-            padding: 14px 16px;
-            box-shadow: 0 8px 18px rgba(23, 34, 59, 0.06);
-        }
-
-        div[data-testid="stMetric"] label {
-            color: var(--muted);
-            font-weight: 650;
-        }
-
-        div[data-testid="stMetricValue"] {
-            color: var(--ink);
-            font-weight: 760;
-        }
-
-        .stButton > button {
-            border-radius: 10px;
-            border: 1px solid var(--rule);
-            font-weight: 700;
-            min-height: 2.55rem;
-            transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
-        }
-
-        .stButton > button:hover {
-            border-color: var(--coral);
-            box-shadow: 0 5px 14px rgba(228, 87, 61, 0.15);
-            transform: translateY(-1px);
-        }
-
-        div[data-testid="stExpander"] {
-            background: var(--paper);
-            border: 1px solid var(--rule);
-            border-radius: 12px;
-        }
-
-        div[data-testid="stAlert"] {
-            border-radius: 12px;
-            border: 1px solid var(--rule);
-        }
-
-        div[data-testid="stTabs"] [data-baseweb="tab-list"] {
-            background: rgba(255, 250, 240, 0.82);
-            border: 1px solid var(--rule);
-            border-radius: 14px;
-            padding: 5px;
-            gap: 4px;
-        }
-
-        div[data-testid="stTabs"] button {
-            font-weight: 700;
-            color: #4c566a;
-            border-radius: 9px;
-        }
-
-        div[data-testid="stTabs"] button[aria-selected="true"] {
-            color: #ffffff;
-            background: var(--navy);
-        }
-
-        .stTextInput input,
-        .stTextArea textarea,
-        .stSelectbox div[data-baseweb="select"] > div {
-            border-radius: 10px;
-        }
-
-        hr {
-            border-color: var(--rule);
-            margin: 1.15rem 0;
-        }
-
-        .onboarding-card {
-            background: rgba(255, 250, 240, 0.92);
-            border: 1px solid var(--rule);
-            border-radius: 4px 16px 16px 16px;
-            padding: 24px;
-            min-height: 168px;
-            box-shadow: 0 10px 24px rgba(23, 34, 59, 0.06);
-        }
-
-        .onboarding-number {
-            display: inline-grid;
-            place-items: center;
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background: var(--coral-soft);
-            color: #a93624;
-            font-weight: 800;
-            margin-bottom: 16px;
-        }
-
-        .onboarding-card h3 {
-            color: var(--ink);
-            margin: 0 0 8px;
-            font-family: Georgia, "Times New Roman", serif;
-        }
-
-        .onboarding-card p {
-            color: var(--muted);
-            margin: 0;
-            line-height: 1.55;
-        }
-
-        @media (max-width: 760px) {
-            .app-header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-            .status-row {
-                justify-content: flex-start;
-            }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_app_header() -> None:
-    st.markdown(
-        """
-        <div class="app-header">
-            <div>
-                <div class="app-kicker">Adaptive learning workspace</div>
-                <h1 class="app-title">Study Tutor</h1>
-                <p class="app-subtitle">Plan with purpose. Practice what matters. See your progress.</p>
-            </div>
-            <div class="status-row">
-                <span class="status-pill accent">Adaptive practice</span>
-                <span class="status-pill">Spaced review</span>
-                <span class="status-pill accent">Claude assistant</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-inject_app_styles()
-render_app_header()
+render_app_shell()
 
 
 # ──────────────────────────────────────────────
@@ -369,14 +93,9 @@ def _cached_perf_summary_for_key(cache_key: str, _profile: dict) -> dict:
 
 def cached_performance(profile: dict) -> dict:
     topic_count = sum(
-        len(course.get("topics", {}))
-        for course in profile.get("courses", {}).values()
+        len(course.get("topics", {})) for course in profile.get("courses", {}).values()
     )
-    cache_key = (
-        f"{profile.get('name', '?')}"
-        f"::{profile.get('total_quizzes', 0)}"
-        f"::{topic_count}"
-    )
+    cache_key = f"{profile.get('name', '?')}::{profile.get('total_quizzes', 0)}::{topic_count}"
     return _cached_perf_summary_for_key(cache_key, profile)
 
 
@@ -490,29 +209,38 @@ def load_profile_into_session(profile: dict) -> None:
         user_message = str(exchange.get("user_message", "")).strip()
         assistant_response = str(exchange.get("assistant_response", "")).strip()
         if user_message:
-            st.session_state.chat_messages.append({
-                "role": "user",
-                "content": user_message,
-            })
+            st.session_state.chat_messages.append(
+                {
+                    "role": "user",
+                    "content": user_message,
+                }
+            )
         if assistant_response:
-            st.session_state.chat_messages.append({
-                "role": "assistant",
-                "content": assistant_response,
-            })
+            st.session_state.chat_messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_response,
+                }
+            )
     reset_quiz_ui_state()
 
 
 def get_visible_quiz_sessions(profile: dict) -> list[dict]:
     """Return saved reports, or a reconstructed latest report for old profiles."""
-    saved = [
-        s for s in profile.get("quiz_sessions", []) or []
-        if isinstance(s, dict)
-    ]
+    saved = [s for s in profile.get("quiz_sessions", []) or [] if isinstance(s, dict)]
     if saved:
         return sorted(saved, key=lambda s: str(s.get("created_at", "")), reverse=True)
 
     restored = build_quiz_session_from_history(profile)
     return [restored] if restored else []
+
+
+def _load_resource_suggestions(topics: list[str]) -> list[dict]:
+    """Load assessed-topic materials from the active Resource Agent."""
+    resource = st.session_state.get("resource_agent")
+    if not resource or not topics:
+        return []
+    return resource.suggest_materials_for_topics(topics, limit_per_topic=1)
 
 
 def render_resource_material_suggestions(
@@ -522,144 +250,27 @@ def render_resource_material_suggestions(
     caption: str | None = None,
     empty_message: str | None = None,
 ) -> bool:
-    """Render ResourceAgent materials for the supplied assessed topics."""
-    if suggestions is None:
-        resource = st.session_state.get("resource_agent")
-        if not resource or not topics:
-            return False
-
-        suggestions = resource.suggest_materials_for_topics(
-            topics,
-            limit_per_topic=1,
-        )
-    if not suggestions:
-        if empty_message:
-            st.info(empty_message)
-        return False
-
-    st.markdown("### Suggested Resource Materials")
-    if caption:
-        st.caption(caption)
-    for suggestion in suggestions:
-        rationale = suggestion.get("rationale", {}) or {}
-        with st.expander(
-            f"{suggestion['topic']}: {suggestion['title']}",
-            expanded=True,
-        ):
-            st.write("**Why this material is shown**")
-            st.write(
-                rationale.get(
-                    "why_shown",
-                    "This material is shown because a quiz answer on this topic was wrong.",
-                )
-            )
-            st.write("**Quiz evidence used**")
-            st.write(
-                rationale.get(
-                    "quiz_evidence",
-                    rationale.get(
-                        "student_need",
-                        "This topic appeared in your missed-question pattern.",
-                    ),
-                )
-            )
-            st.write("**How the material was generated**")
-            st.write(
-                rationale.get(
-                    "generation_source",
-                    rationale.get(
-                        "source",
-                        "ResourceAgent generated or reused this material after evaluating the quiz answers.",
-                    ),
-                )
-            )
-            st.divider()
-            if suggestion.get("explanation"):
-                st.write(suggestion["explanation"])
-            if suggestion.get("analogy"):
-                st.write(f"**Analogy:** {suggestion['analogy']}")
-            if suggestion.get("common_mistake"):
-                st.write(f"**Common mistake:** {suggestion['common_mistake']}")
-            if suggestion.get("self_test"):
-                st.write(f"**Self-test:** {suggestion['self_test']}")
-            if suggestion.get("prerequisites"):
-                st.caption(
-                    "Prerequisites: "
-                    + ", ".join(suggestion["prerequisites"])
-                )
-    return True
+    """Render Resource Agent materials using the active session agent."""
+    return _render_resource_material_suggestions(
+        topics,
+        suggestions=suggestions,
+        caption=caption,
+        empty_message=empty_message,
+        suggestion_loader=_load_resource_suggestions,
+    )
 
 
-def render_quiz_session_snapshot(session: dict, *, expanded_rows: bool = False) -> None:
-    """Render a saved or reconstructed five-question session report."""
-    course = session.get("course", "Unknown course")
-    created_at = session.get("created_at", "")
-    source = session.get("source", "")
-    st.caption(f"{course} | {created_at}")
-    if source == "history_reconstruction":
-        st.info(session.get(
-            "note",
-            "Restored from saved quiz answers. Some old report details were not stored.",
-        ))
-
-    cols = st.columns(3)
-    cols[0].metric("Questions", session.get("question_count", 0))
-    cols[1].metric("Correct", session.get("correct", 0))
-    cols[2].metric("Accuracy", f"{session.get('accuracy', 0)}%")
-
-    st.write(f"**Summary:** {session.get('summary', 'No summary saved.')}")
-    if session.get("strengths"):
-        st.write(f"**Strengths:** {session['strengths']}")
-    if session.get("priority_feedback"):
-        st.write(f"**Review priority:** {session['priority_feedback']}")
-    if session.get("confidence_feedback"):
-        st.write(f"**Confidence pattern:** {session['confidence_feedback']}")
-    if session.get("next_step"):
-        st.write(f"**Next step:** {session['next_step']}")
-
-    rows = session.get("rows", []) or []
-    if rows:
-        st.markdown("#### Question-by-Question Report")
-        for row in rows:
-            status_text = "Correct" if row.get("correct") else "Review"
-            label = (
-                f"Question {row.get('number', '?')}: "
-                f"{row.get('topic', 'this topic')} - {status_text}"
-            )
-            with st.expander(label, expanded=expanded_rows):
-                row_cols = st.columns(3)
-                row_cols[0].metric("Difficulty", f"{row.get('difficulty', '?')}/5")
-                row_cols[1].metric("Confidence", f"{row.get('confidence', '?')}/5")
-                row_cols[2].write("**Signal**")
-                row_cols[2].write(row.get("signal", "Not available"))
-                if row.get("question"):
-                    st.write(f"**Question:** {row['question']}")
-                st.write(f"**Your answer:** {row.get('student_answer', 'not shown')}")
-                st.write(f"**Correct answer:** {row.get('correct_answer', '?')}")
-                if row.get("explanation"):
-                    st.write(f"**Explanation:** {row['explanation']}")
-                if row.get("feedback_summary"):
-                    st.write(f"**Feedback:** {row['feedback_summary']}")
-                if row.get("confidence_insight"):
-                    st.write(f"**Confidence signal:** {row['confidence_insight']}")
-                if row.get("resource_note"):
-                    st.write(f"**Tutor action:** {row['resource_note']}")
-                if row.get("review_note"):
-                    st.caption(row["review_note"])
-                st.write(f"**Next action:** {row.get('next_action', 'Review this item.')}")
-
-    priority_topics = session.get("priority_topics", []) or []
-    if priority_topics:
-        st.divider()
-        saved_materials = session.get("resource_materials", []) or []
-        render_resource_material_suggestions(
-            priority_topics,
-            suggestions=saved_materials if saved_materials else None,
-            caption=(
-                "Shown because this session's saved quiz answers missed these "
-                "topics and the session assessment marked them for review."
-            ),
-        )
+def render_quiz_session_snapshot(
+    session: dict,
+    *,
+    expanded_rows: bool = False,
+) -> None:
+    """Render a saved quiz session using shared UI components."""
+    _render_quiz_session_snapshot(
+        session,
+        expanded_rows=expanded_rows,
+        suggestion_loader=_load_resource_suggestions,
+    )
 
 
 # ──────────────────────────────────────────────
@@ -667,6 +278,7 @@ def render_quiz_session_snapshot(session: dict, *, expanded_rows: bool = False) 
 # ──────────────────────────────────────────────
 with st.sidebar:
     st.header("Student Profile")
+    st.caption("Profiles are stored locally on this computer for this demonstration.")
 
     st.markdown("#### Sample Profile")
     sample_cols = st.columns(2)
@@ -793,7 +405,9 @@ with st.sidebar:
                     course_name, 1, 5, 3, key=f"diff_{course_name}"
                 )
 
-        if st.button("Create Profile", disabled=not student_name or num_courses == 0, type="primary"):
+        if st.button(
+            "Create Profile", disabled=not student_name or num_courses == 0, type="primary"
+        ):
             courses = [
                 {
                     "name": name,
@@ -856,10 +470,12 @@ with st.sidebar:
                 st.success("Chat history cleared.")
 
             # Reset adaptive + spaced-repetition state, keep courses.
-            confirm_reset = st.checkbox("I understand this wipes quiz progress (kept: courses + name)",
-                                         key="confirm_reset")
-            if st.button("Reset learning state", use_container_width=True,
-                         disabled=not confirm_reset):
+            confirm_reset = st.checkbox(
+                "I understand this wipes quiz progress (kept: courses + name)", key="confirm_reset"
+            )
+            if st.button(
+                "Reset learning state", use_container_width=True, disabled=not confirm_reset
+            ):
                 st.session_state.profile = reset_quiz_history(p)
                 save_profile(p["name"], st.session_state.profile)
                 # Re-init agents on the cleaned profile.
@@ -875,10 +491,15 @@ with st.sidebar:
                 st.rerun()
 
             # Permanent delete.
-            confirm_delete = st.checkbox("I understand this PERMANENTLY deletes my profile",
-                                          key="confirm_delete")
-            if st.button("Delete my profile", use_container_width=True,
-                         disabled=not confirm_delete, type="primary"):
+            confirm_delete = st.checkbox(
+                "I understand this PERMANENTLY deletes my profile", key="confirm_delete"
+            )
+            if st.button(
+                "Delete my profile",
+                use_container_width=True,
+                disabled=not confirm_delete,
+                type="primary",
+            ):
                 if delete_profile(p["name"]):
                     st.session_state.profile = None
                     st.session_state.tutor = None
@@ -991,8 +612,12 @@ with tab_quiz:
     # Show if there are review topics
     due = tutor.get_due_reviews()
     if due:
-        review_topics = [d["topic"] for d in due if d["topic"] in
-                        st.session_state.profile["courses"].get(selected_course, {}).get("topics", {})]
+        review_topics = [
+            d["topic"]
+            for d in due
+            if d["topic"]
+            in st.session_state.profile["courses"].get(selected_course, {}).get("topics", {})
+        ]
         if review_topics:
             st.info(f"Topics due for review: {', '.join(review_topics[:3])}")
 
@@ -1014,7 +639,9 @@ with tab_quiz:
         if st.session_state.quiz_session_course:
             st.caption(f"Current quiz session: {st.session_state.quiz_session_course}")
     else:
-        st.info("Start a 5-question quiz session. The tutor gives the overall evaluation after question 5.")
+        st.info(
+            "Start a 5-question quiz session. The tutor gives the overall evaluation after question 5."
+        )
 
     control_cols = st.columns([1, 1, 3])
 
@@ -1025,8 +652,7 @@ with tab_quiz:
             else "Start 5-Question Quiz"
         )
         can_start = (
-            not st.session_state.quiz_session_active
-            and not st.session_state.current_quiz
+            not st.session_state.quiz_session_active and not st.session_state.current_quiz
         ) or st.session_state.quiz_session_complete
         if st.button(start_label, use_container_width=True, disabled=not can_start, type="primary"):
             reset_quiz_ui_state()
@@ -1073,7 +699,11 @@ with tab_quiz:
             mastery = selection_explanation.get("mastery")
             reason_cols[2].write("**Current mastery**")
             reason_cols[2].write("No history yet" if mastery is None else f"{mastery}%")
-            st.caption(selection_explanation.get("detail", "The tutor selected this from your current profile state."))
+            st.caption(
+                selection_explanation.get(
+                    "detail", "The tutor selected this from your current profile state."
+                )
+            )
             st.write(
                 f"Recommended difficulty now: "
                 f"{selection_explanation.get('recommended_difficulty', '?')}/5"
@@ -1085,7 +715,10 @@ with tab_quiz:
             # Confidence self-rating BEFORE answering
             st.session_state.confidence = st.slider(
                 "How confident are you? (1=guessing, 5=certain)",
-                min_value=1, max_value=5, value=3, key="conf_slider"
+                min_value=1,
+                max_value=5,
+                value=3,
+                key="conf_slider",
             )
 
             # Show answer options as buttons
@@ -1098,12 +731,14 @@ with tab_quiz:
                         )
                     st.session_state.quiz_result = result
                     st.session_state.quiz_answered = True
-                    st.session_state.quiz_session_results.append({
-                        "quiz": quiz,
-                        "result": result,
-                        "confidence": st.session_state.confidence,
-                        "student_answer": letter,
-                    })
+                    st.session_state.quiz_session_results.append(
+                        {
+                            "quiz": quiz,
+                            "result": result,
+                            "confidence": st.session_state.confidence,
+                            "student_answer": letter,
+                        }
+                    )
                     if can_evaluate_session(st.session_state.quiz_session_results):
                         st.session_state.quiz_session_complete = True
                         st.session_state.quiz_session_active = False
@@ -1146,13 +781,23 @@ with tab_quiz:
                 fb_cols = st.columns(2)
                 with fb_cols[0]:
                     st.write("**Confidence signal**")
-                    st.write(feedback.get("confidence_insight", "Confidence helps tune the next question."))
+                    st.write(
+                        feedback.get(
+                            "confidence_insight", "Confidence helps tune the next question."
+                        )
+                    )
                 with fb_cols[1]:
                     st.write("**Next step**")
                     st.write(feedback.get("next_step", "Try another question on this topic."))
                 st.write("**Tutor action**")
-                st.write(feedback.get("resource_note", "The tutor updated your learning state for this turn."))
-                st.caption(feedback.get("review_note", "Spaced repetition will update after this answer."))
+                st.write(
+                    feedback.get(
+                        "resource_note", "The tutor updated your learning state for this turn."
+                    )
+                )
+                st.caption(
+                    feedback.get("review_note", "Spaced repetition will update after this answer.")
+                )
 
             # Show if issues were detected
             if result.get("issues"):
@@ -1186,18 +831,25 @@ with tab_quiz:
                         f_hard = st.checkbox("Too hard", key=f"fb_th_{quiz_id}")
                     if st.button("Submit feedback", key=f"fb_submit_{quiz_id}"):
                         flags = []
-                        if f_unclear:    flags.append("unclear_question")
-                        if f_wrong:      flags.append("wrong_answer")
-                        if f_unhelpful:  flags.append("unhelpful_explanation")
-                        if f_easy:       flags.append("too_easy")
-                        if f_hard:       flags.append("too_hard")
+                        if f_unclear:
+                            flags.append("unclear_question")
+                        if f_wrong:
+                            flags.append("wrong_answer")
+                        if f_unhelpful:
+                            flags.append("unhelpful_explanation")
+                        if f_easy:
+                            flags.append("too_easy")
+                        if f_hard:
+                            flags.append("too_hard")
                         if flags:
                             saved = tutor.record_feedback(quiz_id, flags)
                             if saved:
                                 st.success("Thanks — feedback recorded.")
                                 st.session_state[f"feedback_done_{quiz_id}"] = True
                             else:
-                                st.warning("Couldn't save feedback (another tab may be writing). Try again.")
+                                st.warning(
+                                    "Couldn't save feedback (another tab may be writing). Try again."
+                                )
                         else:
                             st.info("Pick at least one flag, or skip.")
 
@@ -1239,16 +891,16 @@ with tab_quiz:
                 st.write(f"**Confidence pattern:** {session_feedback['confidence_feedback']}")
                 st.write(f"**Next step:** {session_feedback['next_step']}")
                 if session_summary["priority_topics"]:
-                    st.write("**Priority topics:** " + ", ".join(session_summary["priority_topics"]))
+                    st.write(
+                        "**Priority topics:** " + ", ".join(session_summary["priority_topics"])
+                    )
                 if session_summary["misconception_topics"]:
                     st.write(
                         "**High-confidence misses:** "
                         + ", ".join(session_summary["misconception_topics"])
                     )
 
-                session_report = build_quiz_session_report(
-                    st.session_state.quiz_session_results
-                )
+                session_report = build_quiz_session_report(st.session_state.quiz_session_results)
                 persisted_session_report = build_persisted_quiz_session(
                     st.session_state.quiz_session_results,
                     course=st.session_state.quiz_session_course or selected_course,
@@ -1307,7 +959,9 @@ with tab_quiz:
                 st.write(f"**Current review signal:** {session_feedback['priority_feedback']}")
                 st.write(f"**Confidence pattern:** {session_feedback['confidence_feedback']}")
                 if st.button("Next Question", use_container_width=True):
-                    load_next_session_question(st.session_state.quiz_session_course or selected_course)
+                    load_next_session_question(
+                        st.session_state.quiz_session_course or selected_course
+                    )
                     st.rerun()
 
 # ──────────────────────────────────────────────
@@ -1369,7 +1023,10 @@ with tab_progress:
                 st.write("**Areas to improve:**")
                 for wt in data["weak_topics"]:
                     acc_pct = round(wt["accuracy"] * 100, 1)
-                    st.progress(wt["accuracy"], text=f"{wt['topic']}: {acc_pct}% ({wt['attempted']} questions)")
+                    st.progress(
+                        wt["accuracy"],
+                        text=f"{wt['topic']}: {acc_pct}% ({wt['attempted']} questions)",
+                    )
 
         # Mastery chart
         mastery = tutor.get_mastery_data()
@@ -1384,12 +1041,16 @@ with tab_progress:
         st.markdown("### Confidence Analysis")
         history = st.session_state.profile.get("quiz_history", [])
         if history:
-            confident_wrong = sum(1 for h in history if h.get("confidence", 3) >= 4 and not h["correct"])
+            confident_wrong = sum(
+                1 for h in history if h.get("confidence", 3) >= 4 and not h["correct"]
+            )
             unsure_right = sum(1 for h in history if h.get("confidence", 3) <= 2 and h["correct"])
             st.write(f"**Misconceptions detected** (confident but wrong): {confident_wrong}")
             st.write(f"**Lucky guesses** (unsure but right): {unsure_right}")
             if confident_wrong > 3:
-                st.warning("Several misconceptions are visible. The tutor will prioritize clarification.")
+                st.warning(
+                    "Several misconceptions are visible. The tutor will prioritize clarification."
+                )
 
         # Saved 5-question session reports
         visible_sessions = get_visible_quiz_sessions(st.session_state.profile)
@@ -1406,9 +1067,11 @@ with tab_progress:
         for entry in reversed(history):
             status = "Correct" if entry["correct"] else "Review"
             conf = entry.get("confidence", "?")
-            st.write(f"**{status}** · **{entry['course']}** — {entry['topic']} "
-                     f"(Diff: {entry['difficulty']}/5, Conf: {conf}/5) — "
-                     f"{entry['question']}")
+            st.write(
+                f"**{status}** · **{entry['course']}** — {entry['topic']} "
+                f"(Diff: {entry['difficulty']}/5, Conf: {conf}/5) — "
+                f"{entry['question']}"
+            )
 
 # ──────────────────────────────────────────────
 # Tab 5: Diagnostics (for evaluation)
@@ -1468,15 +1131,20 @@ with tab_diag:
                 st.error(msg["error"])
                 continue
             direction = "→" if msg.get("sender") == "TutorAgent" else "←"
-            icon = {"request_materials": "REQ", "provide_materials": "MAT",
-                    "report_weakness": "WEAK", "suggest_strategy": "PLAN"
-                    }.get(msg.get("type", ""), "MSG")
+            icon = {
+                "request_materials": "REQ",
+                "provide_materials": "MAT",
+                "report_weakness": "WEAK",
+                "suggest_strategy": "PLAN",
+            }.get(msg.get("type", ""), "MSG")
 
             sender = msg.get("sender", "?")
             receiver = msg.get("receiver", "?")
             content = msg.get("content", {})
 
-            with st.expander(f"{icon} {sender} {direction} {receiver} — {msg.get('type', '?')}", expanded=False):
+            with st.expander(
+                f"{icon} {sender} {direction} {receiver} — {msg.get('type', '?')}", expanded=False
+            ):
                 # Show key content fields (not the full blob)
                 if msg.get("type") == "request_materials":
                     st.write(f"**Topic:** {content.get('topic', '?')}")
@@ -1518,7 +1186,7 @@ with tab_diag:
                         st.write(f"**Top material:** {materials[0].get('title', '?')}")
                 elif msg.get("type") == "report_weakness":
                     st.write(f"**Topic:** {content.get('topic', '?')}")
-                    st.write(f"**Accuracy:** {content.get('accuracy', 0)*100:.0f}%")
+                    st.write(f"**Accuracy:** {content.get('accuracy', 0) * 100:.0f}%")
                     st.write(f"**Attempts:** {content.get('attempts', 0)}")
                 elif msg.get("type") == "suggest_strategy":
                     st.write(f"**Strategy:** {content.get('strategy', '?')}")
@@ -1528,7 +1196,9 @@ with tab_diag:
                         st.warning(f"**Pattern detected:** {pattern}")
                 st.caption(msg.get("timestamp", ""))
     else:
-        st.info("No agent messages yet. When you answer quiz questions wrong, the Tutor Agent will consult the Resource Agent for better explanations.")
+        st.info(
+            "No agent messages yet. When you answer quiz questions wrong, the Tutor Agent will consult the Resource Agent for better explanations."
+        )
 
     # ─── Resource Agent Knowledge Base ───
     st.divider()
@@ -1560,9 +1230,13 @@ with tab_diag:
 
         if kb_stats["topics"]:
             for topic, data in kb_stats["topics"].items():
-                prereqs = ", ".join(data["prerequisites"]) if data["prerequisites"] else "none identified"
-                st.write(f"**{topic}**: {data['times_requested']}x used, "
-                         f"{data['materials_count']} materials, prerequisites: {prereqs}")
+                prereqs = (
+                    ", ".join(data["prerequisites"]) if data["prerequisites"] else "none identified"
+                )
+                st.write(
+                    f"**{topic}**: {data['times_requested']}x used, "
+                    f"{data['materials_count']} materials, prerequisites: {prereqs}"
+                )
                 last_request = data.get("last_request", {}) or {}
                 if last_request:
                     st.caption(
@@ -1597,7 +1271,7 @@ with tab_diag:
             icon = severity_icon.get(issue["severity"], "⚪")
             st.write(f"{icon} **[{issue['type']}]** {issue['message']}")
             st.write(f"   → Fix: {issue['suggested_fix']}")
-            st.caption(issue['timestamp'])
+            st.caption(issue["timestamp"])
             st.write("")
     else:
         st.info("No issues detected yet.")
@@ -1607,7 +1281,9 @@ with tab_diag:
     # COUNTER_DISPLAY_ORDER so the table layout is stable across reruns.
     st.divider()
     st.markdown("### 📈 Observability Counters")
-    st.caption("Monotonic counts since process start — useful for spotting LLM flakiness, cache effectiveness, and persistence failures.")
+    st.caption(
+        "Monotonic counts since process start — useful for spotting LLM flakiness, cache effectiveness, and persistence failures."
+    )
     counters = COUNTERS.snapshot(COUNTER_DISPLAY_ORDER)
     if any(v > 0 for v in counters.values()):
         # Render in a 3-wide grid so the diagnostics tab doesn't sprawl.

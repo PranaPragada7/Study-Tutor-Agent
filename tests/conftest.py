@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import uuid
-import os
 from pathlib import Path
 
 import pytest

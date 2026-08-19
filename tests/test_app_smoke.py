@@ -38,6 +38,7 @@ def temp_data_dir(monkeypatch):
     """Redirect DATA_DIR to a tempdir for each test so we don't touch
     the real student profiles in data/."""
     import utils.student_profile as sp
+
     tmp = tempfile.mkdtemp()
     monkeypatch.setattr(sp, "DATA_DIR", tmp)
     monkeypatch.setattr(sp, "_LOCK_TIMEOUT_SECONDS", 1)
@@ -50,12 +51,13 @@ def fake_api_key(monkeypatch):
     without hitting the network. The Anthropic SDK constructor does NOT
     make a network call, so this is safe — but the client must never
     be USED in these tests (we don't trigger any messages.create call)."""
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-FAKE-FOR-TESTING")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "not-a-real-key-for-testing")
 
 
 # ═══════════════════════════════════════════════
 # 1. Bare-bones load
 # ═══════════════════════════════════════════════
+
 
 def test_app_loads_without_exception(temp_data_dir, fake_api_key):
     """The app must run end-to-end without raising before any user input."""
@@ -70,13 +72,15 @@ def test_app_loads_without_exception(temp_data_dir, fake_api_key):
 
     # Main content should be the "enter your name" hint, not the tabs.
     info_messages = [i.value for i in at.info]
-    assert any("Enter your name" in m for m in info_messages), \
+    assert any("Enter your name" in m for m in info_messages), (
         f"Expected the 'enter name' prompt; got info messages: {info_messages}"
+    )
 
 
 # ═══════════════════════════════════════════════
 # 2. Missing API key surfaces friendly error
 # ═══════════════════════════════════════════════
+
 
 def test_missing_api_key_no_traceback(temp_data_dir, monkeypatch):
     """
@@ -89,8 +93,7 @@ def test_missing_api_key_no_traceback(temp_data_dir, monkeypatch):
     at = AppTest.from_file(APP_PATH)
     at.run(timeout=10)
 
-    assert not at.exception, \
-        f"App load should not raise without API key, got: {at.exception}"
+    assert not at.exception, f"App load should not raise without API key, got: {at.exception}"
     errors = [error.value for error in at.error]
     assert any("Claude connection required" in error for error in errors)
 
@@ -98,6 +101,7 @@ def test_missing_api_key_no_traceback(temp_data_dir, monkeypatch):
 # ═══════════════════════════════════════════════
 # 3. Create-profile flow lights up the main tabs
 # ═══════════════════════════════════════════════
+
 
 def test_create_profile_flow(temp_data_dir, fake_api_key):
     """
@@ -113,8 +117,7 @@ def test_create_profile_flow(temp_data_dir, fake_api_key):
     assert not at.exception
 
     # Sidebar inputs are ordered: text_input[0]=name, text_area[0]=courses
-    name_inputs = [t for t in at.sidebar.text_input
-                   if "Name" in (t.label or "")]
+    name_inputs = [t for t in at.sidebar.text_input if "Name" in (t.label or "")]
     assert name_inputs, "Couldn't find the Name text_input in the sidebar"
     name_inputs[0].set_value("SmokeTest").run(timeout=10)
     assert not at.exception
@@ -125,8 +128,7 @@ def test_create_profile_flow(temp_data_dir, fake_api_key):
     assert not at.exception
 
     # The create-profile button is on the sidebar; click it.
-    create_buttons = [b for b in at.sidebar.button
-                      if "Create Profile" in (b.label or "")]
+    create_buttons = [b for b in at.sidebar.button if "Create Profile" in (b.label or "")]
     assert create_buttons, "Couldn't find the Create Profile button"
     create_buttons[0].click().run(timeout=10)
     assert not at.exception, f"Create Profile flow raised: {at.exception}"
@@ -150,8 +152,9 @@ def test_create_profile_flow(temp_data_dir, fake_api_key):
 
     # Main-content "enter your name" hint should be gone.
     info_messages = [i.value for i in at.info]
-    assert not any("Enter your name" in m for m in info_messages), \
+    assert not any("Enter your name" in m for m in info_messages), (
         "Expected the create-profile flow to dismiss the name prompt"
+    )
 
 
 def test_sidebar_lists_saved_profiles(temp_data_dir, fake_api_key):
@@ -170,17 +173,11 @@ def test_sidebar_lists_saved_profiles(temp_data_dir, fake_api_key):
     markdown = [m.value for m in at.sidebar.markdown]
     assert any("Existing Profiles" in m for m in markdown)
 
-    saved_selectboxes = [
-        s for s in at.sidebar.selectbox
-        if "Saved profiles" in (s.label or "")
-    ]
+    saved_selectboxes = [s for s in at.sidebar.selectbox if "Saved profiles" in (s.label or "")]
     assert saved_selectboxes, "Saved profile selector was not rendered"
     assert "Visible Student - 0 quizzes, 1 course" in saved_selectboxes[0].options
 
-    load_buttons = [
-        b for b in at.sidebar.button
-        if "Load Selected Profile" in (b.label or "")
-    ]
+    load_buttons = [b for b in at.sidebar.button if "Load Selected Profile" in (b.label or "")]
     assert load_buttons, "Saved profile load button was not rendered"
 
 
@@ -213,10 +210,7 @@ def test_sample_profile_button_loads_existing_sample(temp_data_dir, fake_api_key
     at.run(timeout=10)
     assert not at.exception
 
-    sample_buttons = [
-        b for b in at.sidebar.button
-        if "Load Sample Student" in (b.label or "")
-    ]
+    sample_buttons = [b for b in at.sidebar.button if "Load Sample Student" in (b.label or "")]
     assert sample_buttons, "Couldn't find the Load Sample Student button"
 
     sample_buttons[0].click().run(timeout=10)

@@ -48,24 +48,22 @@ import os
 import random
 import sys
 from dataclasses import dataclass
-from typing import Callable
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from agents.adaptive_engine import AdaptiveEngine
-from utils.spaced_repetition import SpacedRepetitionScheduler
-from utils.issue_detector import IssueDetector
-from utils.student_profile import create_profile, record_quiz_result
-
 from tests.simulate_students import (
+    NUM_QUESTIONS,
+    TOPICS,
     ConfusedStudent,
     ImprovingStudent,
-    NUM_QUESTIONS,
     RandomStudent,
     StrongStudent,
     StrugglingStudent,
-    TOPICS,
 )
+from utils.issue_detector import IssueDetector
+from utils.spaced_repetition import SpacedRepetitionScheduler
+from utils.student_profile import create_profile, record_quiz_result
 
 EVAL_DIR = os.path.join(os.path.dirname(__file__), "..", "eval-output")
 COURSE = "CS101"
@@ -75,10 +73,12 @@ COURSE = "CS101"
 # Policy interface
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PolicyContext:
     """State the policies are allowed to read. The bandit-style
     policies mutate ``engine``; the simpler policies ignore it."""
+
     engine: AdaptiveEngine
     scheduler: SpacedRepetitionScheduler
 
@@ -89,8 +89,9 @@ class Policy:
     def select(self, ctx: PolicyContext, available_topics: list[str]) -> tuple[str, int]:
         raise NotImplementedError
 
-    def update(self, ctx: PolicyContext, topic: str, difficulty: int,
-               correct: bool, confidence: int) -> None:
+    def update(
+        self, ctx: PolicyContext, topic: str, difficulty: int, correct: bool, confidence: int
+    ) -> None:
         # Default: feed the engine so its mastery / topic_accuracy stays
         # current even for non-bandit policies (so the metrics tab can
         # still show "did the student get better?").
@@ -157,6 +158,7 @@ class AdaptiveNoO9Policy(Policy):
     "AdaptiveFull" vs "AdaptiveNoO9" lets us measure whether O9 (the
     Struggling-Sam fix) actually buys anything.
     """
+
     name = "adaptive_no_o9"
 
     def select(self, ctx, available_topics):
@@ -175,8 +177,8 @@ def _build_engine_no_o9(seed: int) -> AdaptiveEngine:
     use the pre-O9 cold-start formula (no weakness-aware dampening of
     cold_exploration). Surgical so we don't have to maintain a fork."""
     import math
+
     engine = AdaptiveEngine(seed=seed)
-    original = engine._compute_arm_value
 
     def pre_o9(topic, difficulty, log_total=None):  # noqa: ANN001
         # Reproduce the seen-arm branch unchanged; only override the
@@ -206,8 +208,8 @@ def _build_engine_no_o9(seed: int) -> AdaptiveEngine:
 # Benchmark runner
 # ---------------------------------------------------------------------------
 
-def _run_one(policy: Policy, student, num_questions: int,
-             engine_seed: int) -> dict:
+
+def _run_one(policy: Policy, student, num_questions: int, engine_seed: int) -> dict:
     """Run a single (policy, student) pair, return aggregated metrics."""
     if policy.name == "adaptive_no_o9":
         engine = _build_engine_no_o9(engine_seed)
@@ -215,11 +217,14 @@ def _run_one(policy: Policy, student, num_questions: int,
         engine = AdaptiveEngine(seed=engine_seed)
     scheduler = SpacedRepetitionScheduler()
     detector = IssueDetector()
-    profile = create_profile(f"bench_{policy.name}_{student.name}",
-                              [{"name": COURSE, "difficulty": 3}])
+    profile = create_profile(
+        f"bench_{policy.name}_{student.name}", [{"name": COURSE, "difficulty": 3}]
+    )
     for t in TOPICS:
         profile["courses"][COURSE]["topics"][t] = {
-            "correct": 0, "attempted": 0, "current_difficulty": 2,
+            "correct": 0,
+            "attempted": 0,
+            "current_difficulty": 2,
         }
 
     ctx = PolicyContext(engine=engine, scheduler=scheduler)
@@ -236,10 +241,10 @@ def _run_one(policy: Policy, student, num_questions: int,
         policy.update(ctx, topic, difficulty, is_correct, confidence)
         sm2 = scheduler.quality_from_result(is_correct, confidence, difficulty)
         scheduler.update_topic(topic, sm2)
-        profile = record_quiz_result(profile, COURSE, topic, difficulty,
-                                      is_correct, "q", "A", confidence)
-        new_issues = detector.analyze_quiz_result(profile, COURSE, topic,
-                                                   difficulty, is_correct)
+        profile = record_quiz_result(
+            profile, COURSE, topic, difficulty, is_correct, "q", "A", confidence
+        )
+        new_issues = detector.analyze_quiz_result(profile, COURSE, topic, difficulty, is_correct)
         total_issues += len(new_issues)
 
         diffs.append(difficulty)
@@ -289,8 +294,7 @@ def _make_policies(seed: int) -> list[Policy]:
     ]
 
 
-def run_benchmark(seed: int = 42,
-                  num_questions: int = NUM_QUESTIONS) -> list[dict]:
+def run_benchmark(seed: int = 42, num_questions: int = NUM_QUESTIONS) -> list[dict]:
     """Run every persona × every policy. Returns flat list of metric rows."""
     rows: list[dict] = []
     persona_classes = _make_personas(seed)
@@ -352,6 +356,7 @@ def save_csv(rows: list[dict], path: str) -> None:
 # Pytest hook: at minimum, prove the benchmark runs deterministically.
 # ---------------------------------------------------------------------------
 
+
 def test_benchmark_determinism():
     """Same seed → identical metrics. Catches accidental
     nondeterminism from a stray ``random.random()`` slipping into a
@@ -380,6 +385,7 @@ def test_adaptive_full_beats_random_on_zpd_for_strong_student():
 
 if __name__ == "__main__":
     import io
+
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
     os.makedirs(EVAL_DIR, exist_ok=True)

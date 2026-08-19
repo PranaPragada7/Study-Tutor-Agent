@@ -62,11 +62,13 @@ def _check_5_question_flow() -> list[str]:
         tutor = TutorAgent(profile, message_bus=bus, client=None)
         resource = ResourceAgent(bus, client=None)
 
-        choice_explanation = tutor.explain_quiz_choice({
-            "topic": "Recursion",
-            "difficulty": 2,
-            "is_review": False,
-        })
+        choice_explanation = tutor.explain_quiz_choice(
+            {
+                "topic": "Recursion",
+                "difficulty": 2,
+                "is_review": False,
+            }
+        )
         if not choice_explanation.get("reason") or not choice_explanation.get("detail"):
             _fail("adaptive quiz choice explanation was not generated")
 
@@ -76,7 +78,12 @@ def _check_5_question_flow() -> list[str]:
                 "course": "Intro to CS",
                 "difficulty": 2,
                 "question": "What does a while loop do?",
-                "options": ["A) Repeats while true", "B) Runs once", "C) Imports code", "D) Defines a class"],
+                "options": [
+                    "A) Repeats while true",
+                    "B) Runs once",
+                    "C) Imports code",
+                    "D) Defines a class",
+                ],
                 "correct_answer": "A",
                 "explanation": "A while loop repeats while its condition remains true.",
                 "answer": "A",
@@ -87,7 +94,12 @@ def _check_5_question_flow() -> list[str]:
                 "course": "Intro to CS",
                 "difficulty": 3,
                 "question": "What is a base case?",
-                "options": ["A) A stopping condition", "B) A larger recursive call", "C) A global variable", "D) A class"],
+                "options": [
+                    "A) A stopping condition",
+                    "B) A larger recursive call",
+                    "C) A global variable",
+                    "D) A class",
+                ],
                 "correct_answer": "A",
                 "explanation": "A base case stops recursion so calls can unwind.",
                 "answer": "B",
@@ -98,7 +110,12 @@ def _check_5_question_flow() -> list[str]:
                 "course": "Intro to CS",
                 "difficulty": 2,
                 "question": "What is an argument?",
-                "options": ["A) A value passed to a function", "B) A loop", "C) A file", "D) A package"],
+                "options": [
+                    "A) A value passed to a function",
+                    "B) A loop",
+                    "C) A file",
+                    "D) A package",
+                ],
                 "correct_answer": "A",
                 "explanation": "An argument is the value supplied when calling a function.",
                 "answer": "A",
@@ -109,7 +126,12 @@ def _check_5_question_flow() -> list[str]:
                 "course": "Intro to CS",
                 "difficulty": 2,
                 "question": "What does an index identify?",
-                "options": ["A) A position in a sequence", "B) A boolean only", "C) A function call", "D) A module"],
+                "options": [
+                    "A) A position in a sequence",
+                    "B) A boolean only",
+                    "C) A function call",
+                    "D) A module",
+                ],
                 "correct_answer": "A",
                 "explanation": "An index identifies a position in a sequence.",
                 "answer": "A",
@@ -120,7 +142,12 @@ def _check_5_question_flow() -> list[str]:
                 "course": "Intro to CS",
                 "difficulty": 3,
                 "question": "How do dictionaries usually retrieve values?",
-                "options": ["A) By key", "B) Only by numeric position", "C) By loop count", "D) By file name"],
+                "options": [
+                    "A) By key",
+                    "B) Only by numeric position",
+                    "C) By loop count",
+                    "D) By file name",
+                ],
                 "correct_answer": "A",
                 "explanation": "Dictionaries retrieve values by key.",
                 "answer": "C",
@@ -136,12 +163,14 @@ def _check_5_question_flow() -> list[str]:
                 _fail(f"question {idx} did not return student_feedback")
             if result.get("used_multi_agent"):
                 used_resource_agent = True
-            session_results.append({
-                "quiz": quiz,
-                "result": result,
-                "confidence": quiz["confidence"],
-                "student_answer": quiz["answer"],
-            })
+            session_results.append(
+                {
+                    "quiz": quiz,
+                    "result": result,
+                    "confidence": quiz["confidence"],
+                    "student_answer": quiz["answer"],
+                }
+            )
 
             if idx < 5 and can_evaluate_session(session_results):
                 _fail("session became evaluable before five questions")

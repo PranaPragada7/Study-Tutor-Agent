@@ -1,4 +1,4 @@
-streamlit>=1.30.0,<2
-anthropic>=0.40.0,<1
-python-dotenv>=1.0.0,<2
-filelock>=3.13.0,<4
+streamlit>=1.61.1,<2
+anthropic>=0.122.0,<1
+python-dotenv>=1.2.3,<2
+filelock>=3.32.3,<4

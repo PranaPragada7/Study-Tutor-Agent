@@ -52,7 +52,7 @@ def test_explicit_none_client_disables_external_calls(monkeypatch):
 
     assert tutor.client is None
     assert resource.client is None
-    assert "claude is unavailable" in tutor.chat("What should I review?").lower()
+    assert "based on your saved progress" in tutor.chat("What should I review?").lower()
 
 
 class TestBasicCommunication:

@@ -12,6 +12,9 @@ import pytest
 # Keep the unit test suite hermetic even when a developer has a real key
 # in .env. Individual tests can still monkeypatch a fake key when needed.
 os.environ["ANTHROPIC_API_KEY"] = ""
+# Preserve the legacy JSON backend for the established persistence tests.
+# Dedicated platform tests opt into SQLite explicitly.
+os.environ["STUDY_TUTOR_STORAGE"] = "json"
 
 _WORKSPACE_TEMP_ROOT = Path(__file__).resolve().parents[1] / ".tmp" / "pytest-runtime"
 _WORKSPACE_TEMP_ROOT.mkdir(parents=True, exist_ok=True)

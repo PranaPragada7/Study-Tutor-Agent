@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+venv
+.tmp
+.pytest_cache
+__pycache__
+*.pyc
+.coverage
+htmlcov
+eval-output
+.env
+data/*.db
+data/*.db-*
+data/*.lock

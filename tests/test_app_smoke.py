@@ -6,8 +6,7 @@ regressions that today only surface when a human runs the app:
 
   - app.py imports without raising
   - the sidebar renders the Student Profile section
-  - missing ``ANTHROPIC_API_KEY`` surfaces a friendly ``st.error`` and
-    stops the run cleanly (no Python traceback in the page)
+  - missing ``ANTHROPIC_API_KEY`` activates the complete local demo runtime
   - the create-profile flow wires through to a usable session state
     (profile populated, tutor instantiated, no exceptions)
 
@@ -70,11 +69,10 @@ def test_app_loads_without_exception(temp_data_dir, fake_api_key):
     headers = [h.value for h in at.sidebar.header]
     assert any("Student Profile" in h for h in headers)
 
-    # Main content should be the "enter your name" hint, not the tabs.
-    info_messages = [i.value for i in at.info]
-    assert any("Enter your name" in m for m in info_messages), (
-        f"Expected the 'enter name' prompt; got info messages: {info_messages}"
-    )
+    # Main content should be the onboarding workspace, not the learning tabs.
+    markdown = [item.value for item in at.markdown]
+    assert any("Your learning workspace is ready" in value for value in markdown)
+    assert not at.tabs
 
 
 # ═══════════════════════════════════════════════
@@ -82,11 +80,10 @@ def test_app_loads_without_exception(temp_data_dir, fake_api_key):
 # ═══════════════════════════════════════════════
 
 
-def test_missing_api_key_no_traceback(temp_data_dir, monkeypatch):
+def test_missing_api_key_uses_local_demo_without_traceback(temp_data_dir, monkeypatch):
     """
-    Without ANTHROPIC_API_KEY, app.py must NOT show a Python traceback.
-    The startup gate should render a clear connection error and stop the
-    page cleanly before profile controls become interactive.
+    Without ANTHROPIC_API_KEY, the app should remain fully usable and explain
+    that the local deterministic tutor is active.
     """
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -94,8 +91,9 @@ def test_missing_api_key_no_traceback(temp_data_dir, monkeypatch):
     at.run(timeout=10)
 
     assert not at.exception, f"App load should not raise without API key, got: {at.exception}"
-    errors = [error.value for error in at.error]
-    assert any("Claude connection required" in error for error in errors)
+    assert not at.error
+    markdown = [item.value for item in at.markdown]
+    assert any("Local demo" in value for value in markdown)
 
 
 # ═══════════════════════════════════════════════

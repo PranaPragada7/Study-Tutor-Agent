@@ -1,0 +1,26 @@
+services:
+  tutor-ui:
+    build: .
+    environment:
+      STUDY_TUTOR_MODE: demo
+      STUDY_TUTOR_STORAGE: sqlite
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      - study-tutor-data:/app/data
+    restart: unless-stopped
+
+  tutor-api:
+    build: .
+    command: ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      STUDY_TUTOR_MODE: demo
+      STUDY_TUTOR_STORAGE: sqlite
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - study-tutor-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  study-tutor-data:

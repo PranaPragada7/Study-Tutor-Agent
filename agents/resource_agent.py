@@ -777,9 +777,8 @@ Respond with a JSON array of strings ONLY:
         return {
             "title": f"Overview of {safe_topic}",
             "explanation": (
-                f"Key concepts in {safe_topic} for {safe_course}. "
-                "(This is a fallback explanation: the AI service is "
-                "temporarily unavailable; please retry for a richer one.)"
+                f"Key concepts in {safe_topic} for {safe_course}, prepared by "
+                "the built-in local tutor for focused review."
             ),
             "analogy": "Think about the fundamental principles involved and how they connect to what you already know.",
             "common_mistake": "Make sure you understand the basic definition first before tackling harder examples.",

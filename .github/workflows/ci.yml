@@ -43,3 +43,17 @@ jobs:
       - name: Run compatibility tests
         if: matrix.python-version != '3.11'
         run: python -m pytest -q
+
+  container:
+    name: Container smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build local application image
+        run: docker build --tag study-tutor:ci .
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet

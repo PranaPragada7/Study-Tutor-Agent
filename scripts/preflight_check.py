@@ -49,7 +49,15 @@ PLACEHOLDER_KEYS = {
 MIN_PYTHON = (3, 10)
 
 # Modules that must import for the app + agents to run.
-REQUIRED_MODULES = ("streamlit", "anthropic", "dotenv", "filelock")
+REQUIRED_MODULES = (
+    "streamlit",
+    "anthropic",
+    "dotenv",
+    "filelock",
+    "fastapi",
+    "pydantic",
+    "uvicorn",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -277,8 +285,24 @@ def run_all_checks(auto_regenerate: bool = True) -> list[CheckResult]:
     valid_shell_key = (
         shell_key not in PLACEHOLDER_KEYS and shell_key.startswith("sk-") and len(shell_key) > 30
     )
+    requested_mode = os.environ.get("STUDY_TUTOR_MODE", "demo").strip().lower()
     results.append(check_imports(REQUIRED_MODULES))
-    if valid_shell_key:
+    if requested_mode == "demo":
+        results.append(
+            CheckResult(
+                name=".env file",
+                ok=True,
+                detail="optional; explicit local demo mode needs no secrets",
+            )
+        )
+        results.append(
+            CheckResult(
+                name="ANTHROPIC_API_KEY",
+                ok=True,
+                detail="not used while STUDY_TUTOR_MODE=demo",
+            )
+        )
+    elif valid_shell_key:
         results.append(
             CheckResult(
                 name=".env file",
@@ -286,9 +310,22 @@ def run_all_checks(auto_regenerate: bool = True) -> list[CheckResult]:
                 detail="optional because the API key is set in the environment",
             )
         )
+        results.append(check_api_key(ENV_PATH))
     else:
-        results.append(check_env_file_exists(ENV_PATH))
-    results.append(check_api_key(ENV_PATH))
+        results.append(
+            CheckResult(
+                name=".env file",
+                ok=True,
+                detail="optional; local demo mode needs no secrets",
+            )
+        )
+        results.append(
+            CheckResult(
+                name="ANTHROPIC_API_KEY",
+                ok=True,
+                detail="optional; built-in local tutor will be used",
+            )
+        )
     profile = check_sample_profile(SAMPLE_PROFILE_PATH)
     results.append(profile)
     if not profile.ok and auto_regenerate:

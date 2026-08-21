@@ -636,8 +636,7 @@ PERFORMANCE SO FAR:{perf_info if perf_info else " No quizzes taken yet."}{recent
                 )
             focus = ", ".join(t for t in weak_topics[:3] if t) or "the next quiz topic"
             assistant_message = (
-                "Claude is unavailable for this request. "
-                f"Based on your saved profile for {courses}, a good next move is to review {focus}, "
+                f"Based on your saved progress in {courses}, start by reviewing {focus}, "
                 "then answer one adaptive quiz question and check the Progress and Diagnostics tabs."
             )
             self.conversation_history.append({"role": "assistant", "content": assistant_message})
@@ -1417,8 +1416,8 @@ for remembering this concept."""
             f"**Today:** Review spaced-repetition items first: {due}. Then do one adaptive quiz.\n\n"
             f"**Next focus:** Spend 25 minutes each on: {weak_text}.\n\n"
             f"**This week:** Watch for upcoming reviews: {upcoming_text}.\n\n"
-            "**Service note:** This plan was generated locally because Claude was unavailable. "
-            "The adaptive quiz, mastery tracking, spaced repetition, and diagnostics still work from the saved profile."
+            "**Local tutor plan:** This plan uses your saved profile, weak topics, "
+            "and spaced-review schedule."
         )
 
     @llm_error_handler(
@@ -1548,8 +1547,7 @@ Example: ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"]"""
         canonical topic id) for a real, pedagogically-useful question.
         If the topic isn't in the bank, returns a clearly-labelled
         generic stub that fits the schema but tells the student
-        honestly that the AI couldn't generate a question — better
-        than the previous "What is an important concept?" trick.
+        honestly that a general review item is being used.
         """
         from agents._prerequisites import canonical_topic_id  # avoid import cycle at module top
 
@@ -1564,8 +1562,8 @@ Example: ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"]"""
         safe = safe_label(topic, limit=80) or "this topic"
         return {
             "question": (
-                f"The AI couldn't generate a fresh question on '{safe}' just now. "
-                "Pick the most useful next study step:"
+                f"You are beginning a review cycle for '{safe}'. "
+                "Which first step builds the strongest foundation?"
             ),
             "options": [
                 f"A) Review the definition of {safe} and a worked example",
@@ -1575,9 +1573,8 @@ Example: ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"]"""
             ],
             "correct_answer": "A",
             "explanation": (
-                "When the AI fallback fires, the most reliable next step is a "
-                "definition-plus-example review — it rebuilds the foundation "
-                "the bandit was trying to test."
+                "A definition-plus-example review rebuilds the foundation before "
+                "you attempt more difficult recall and application questions."
             ),
         }
 

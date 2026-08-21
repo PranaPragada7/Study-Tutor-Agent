@@ -1,45 +1,49 @@
-"""Study Tutor's paper-and-ink visual system and application header."""
+"""Professional visual system and application shell for Study Tutor."""
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
+
+from services.runtime import RuntimeConfig
 
 APP_CSS = """
 <style>
 :root {
-    --paper: #fffaf0;
-    --paper-deep: #f7f2e8;
-    --ink: #17223b;
+    --canvas: #f4f7fb;
+    --surface: #ffffff;
+    --surface-soft: #f8faff;
+    --ink: #15213b;
     --muted: #667085;
-    --rule: #d8cdbb;
-    --coral: #e4573d;
-    --coral-soft: #fde8df;
-    --gold: #f2b84b;
-    --navy: #17223b;
+    --line: #e2e8f2;
+    --brand: #3b5ccc;
+    --brand-deep: #1d2b5b;
+    --teal: #0f766e;
+    --teal-soft: #e8f7f4;
+    --shadow: 0 16px 44px rgba(24, 39, 75, 0.08);
 }
 
 .stApp {
-    background-color: var(--paper-deep);
-    background-image:
-        linear-gradient(rgba(23, 34, 59, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(23, 34, 59, 0.035) 1px, transparent 1px);
-    background-size: 28px 28px;
+    background:
+        radial-gradient(circle at 92% 3%, rgba(59, 92, 204, 0.10), transparent 24rem),
+        var(--canvas);
     color: var(--ink);
 }
 
 .block-container {
-    padding-top: 1.4rem;
-    padding-bottom: 3rem;
-    max-width: 1320px;
+    padding-top: 1.5rem;
+    padding-bottom: 4rem;
+    max-width: 1380px;
 }
 
 section[data-testid="stSidebar"] {
-    background: var(--navy);
-    border-right: 4px solid var(--gold);
+    background: linear-gradient(180deg, #17234a 0%, #111a35 100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 section[data-testid="stSidebar"] * {
-    color: #f8fafc;
+    color: #eef2ff;
 }
 
 section[data-testid="stSidebar"] [data-baseweb="select"] *,
@@ -49,43 +53,55 @@ section[data-testid="stSidebar"] textarea {
 }
 
 section[data-testid="stSidebar"] .stButton > button {
-    background: #fffaf0;
-    color: var(--ink);
-    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--brand-deep);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 section[data-testid="stSidebar"] .stButton > button * {
-    color: var(--ink) !important;
+    color: var(--brand-deep) !important;
 }
 
 section[data-testid="stSidebar"] hr {
-    border-color: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .app-header {
-    background: var(--navy);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 22px 22px 22px 6px;
-    padding: 28px 30px;
-    margin-bottom: 22px;
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    align-items: center;
-    box-shadow: 0 14px 34px rgba(23, 34, 59, 0.16);
     position: relative;
     overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    min-height: 190px;
+    padding: 34px 38px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    background: linear-gradient(118deg, rgba(29, 43, 91, 0.98), rgba(47, 74, 166, 0.94));
+    box-shadow: 0 22px 60px rgba(29, 43, 91, 0.18);
 }
 
+.app-header::before,
 .app-header::after {
     content: "";
     position: absolute;
-    width: 170px;
-    height: 170px;
-    right: -55px;
-    top: -75px;
-    border: 28px solid rgba(242, 184, 75, 0.18);
     border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-header::before {
+    width: 270px;
+    height: 270px;
+    right: -70px;
+    top: -125px;
+}
+
+.app-header::after {
+    width: 155px;
+    height: 155px;
+    right: 55px;
+    bottom: -115px;
 }
 
 .app-header > * {
@@ -94,67 +110,95 @@ section[data-testid="stSidebar"] hr {
 }
 
 .app-kicker {
-    color: var(--gold);
-    font-size: 0.75rem;
+    color: #a9d6ff;
+    font-size: 0.74rem;
     font-weight: 800;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .app-title {
     margin: 0;
-    color: #fffaf0 !important;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(2.15rem, 4vw, 3.35rem);
+    color: #ffffff !important;
+    font-size: clamp(2.35rem, 4vw, 3.6rem);
     line-height: 1;
-    font-weight: 700;
-    letter-spacing: -0.035em;
+    font-weight: 780;
+    letter-spacing: -0.045em;
 }
 
 .app-subtitle {
-    margin: 11px 0 0 0;
-    color: #cbd5e1;
-    font-size: 1rem;
+    max-width: 660px;
+    margin: 14px 0 0;
+    color: #dbe5ff;
+    font-size: 1.04rem;
+    line-height: 1.55;
 }
 
 .status-row {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
     justify-content: flex-end;
+    gap: 9px;
+    flex-wrap: wrap;
+    max-width: 390px;
 }
 
 .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.08);
     border-radius: 999px;
-    padding: 7px 11px;
-    color: #f8fafc;
-    font-size: 0.83rem;
-    font-weight: 650;
+    background: rgba(255, 255, 255, 0.09);
+    color: #f8fbff;
+    font-size: 0.82rem;
+    font-weight: 700;
     white-space: nowrap;
     backdrop-filter: blur(8px);
 }
 
-.status-pill.accent {
-    border-color: rgba(242, 184, 75, 0.55);
-    background: rgba(242, 184, 75, 0.16);
-    color: #ffe6a6;
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #5eead4;
+    box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.14);
+}
+
+.runtime-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 22px;
+    padding: 12px 15px;
+    border: 1px solid #cde9e3;
+    border-radius: 13px;
+    background: var(--teal-soft);
+    color: #155e58;
+    font-size: 0.9rem;
+}
+
+.runtime-banner strong {
+    color: #115e59;
+    white-space: nowrap;
 }
 
 div[data-testid="stMetric"] {
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-top: 4px solid var(--coral);
-    border-radius: 4px 14px 14px 14px;
-    padding: 14px 16px;
-    box-shadow: 0 8px 18px rgba(23, 34, 59, 0.06);
+    min-height: 112px;
+    padding: 17px 18px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 9px 28px rgba(24, 39, 75, 0.055);
 }
 
 div[data-testid="stMetric"] label {
     color: var(--muted);
-    font-weight: 650;
+    font-size: 0.78rem;
+    font-weight: 720;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
 }
 
 div[data-testid="stMetricValue"] {
@@ -163,47 +207,46 @@ div[data-testid="stMetricValue"] {
 }
 
 .stButton > button {
-    border-radius: 10px;
-    border: 1px solid var(--rule);
-    font-weight: 700;
-    min-height: 2.55rem;
-    transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+    min-height: 2.7rem;
+    border: 1px solid #d8dfec;
+    border-radius: 11px;
+    font-weight: 720;
+    transition: border-color 130ms ease, box-shadow 130ms ease, transform 130ms ease;
 }
 
 .stButton > button:hover {
-    border-color: var(--coral);
-    box-shadow: 0 5px 14px rgba(228, 87, 61, 0.15);
+    border-color: var(--brand);
+    box-shadow: 0 7px 20px rgba(59, 92, 204, 0.15);
     transform: translateY(-1px);
 }
 
-div[data-testid="stExpander"] {
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-radius: 12px;
-}
-
-div[data-testid="stAlert"] {
-    border-radius: 12px;
-    border: 1px solid var(--rule);
+div[data-testid="stExpander"],
+div[data-testid="stAlert"],
+div[data-testid="stChatMessage"] {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
 }
 
 div[data-testid="stTabs"] [data-baseweb="tab-list"] {
-    background: rgba(255, 250, 240, 0.82);
-    border: 1px solid var(--rule);
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 5px;
-    gap: 4px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 8px 24px rgba(24, 39, 75, 0.04);
 }
 
 div[data-testid="stTabs"] button {
-    font-weight: 700;
-    color: #4c566a;
+    padding: 9px 16px;
     border-radius: 9px;
+    color: #526078;
+    font-weight: 720;
 }
 
 div[data-testid="stTabs"] button[aria-selected="true"] {
     color: #ffffff;
-    background: var(--navy);
+    background: var(--brand-deep);
 }
 
 .stTextInput input,
@@ -213,72 +256,142 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 }
 
 hr {
-    border-color: var(--rule);
-    margin: 1.15rem 0;
+    border-color: var(--line);
+    margin: 1.2rem 0;
 }
 
-.onboarding-card {
-    background: rgba(255, 250, 240, 0.92);
-    border: 1px solid var(--rule);
-    border-radius: 4px 16px 16px 16px;
+.section-intro {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: flex-end;
+    margin: 4px 0 18px;
+}
+
+.section-eyebrow {
+    color: var(--brand);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.section-intro h2 {
+    margin: 5px 0 0;
+    color: var(--ink);
+    font-size: 1.65rem;
+    letter-spacing: -0.025em;
+}
+
+.section-intro p {
+    max-width: 560px;
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.onboarding-card,
+.insight-card {
+    height: 100%;
     padding: 24px;
-    min-height: 168px;
-    box-shadow: 0 10px 24px rgba(23, 34, 59, 0.06);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.93);
+    box-shadow: var(--shadow);
 }
 
 .onboarding-number {
     display: inline-grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: var(--coral-soft);
-    color: #a93624;
-    font-weight: 800;
-    margin-bottom: 16px;
+    width: 38px;
+    height: 38px;
+    margin-bottom: 18px;
+    border-radius: 11px;
+    background: #e9eeff;
+    color: var(--brand);
+    font-weight: 820;
 }
 
-.onboarding-card h3 {
-    color: var(--ink);
+.onboarding-card h3,
+.insight-card h3 {
     margin: 0 0 8px;
-    font-family: Georgia, "Times New Roman", serif;
+    color: var(--ink);
+    font-size: 1.04rem;
 }
 
-.onboarding-card p {
-    color: var(--muted);
+.onboarding-card p,
+.insight-card p {
     margin: 0;
-    line-height: 1.55;
+    color: var(--muted);
+    line-height: 1.58;
 }
 
-@media (max-width: 760px) {
-    .app-header {
+.insight-card {
+    box-shadow: 0 9px 28px rgba(24, 39, 75, 0.055);
+}
+
+.insight-label {
+    margin-bottom: 9px;
+    color: var(--teal);
+    font-size: 0.73rem;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+@media (max-width: 820px) {
+    .app-header,
+    .section-intro {
         align-items: flex-start;
         flex-direction: column;
     }
+    .app-header {
+        padding: 28px 25px;
+    }
     .status-row {
         justify-content: flex-start;
+    }
+    .runtime-banner {
+        align-items: flex-start;
+        flex-wrap: wrap;
     }
 }
 </style>
 """
 
-APP_HEADER = """
-<div class="app-header">
-    <div>
-        <div class="app-kicker">Adaptive learning workspace</div>
-        <h1 class="app-title">Study Tutor</h1>
-        <p class="app-subtitle">Plan with purpose. Practice what matters. See your progress.</p>
-    </div>
-    <div class="status-row">
-        <span class="status-pill accent">Adaptive practice</span>
-        <span class="status-pill">Spaced review</span>
-        <span class="status-pill accent">Claude assistant</span>
-    </div>
-</div>
-"""
 
+def render_app_shell(runtime: RuntimeConfig) -> None:
+    """Render global styling, runtime status, and the product header."""
 
-def render_app_shell() -> None:
-    """Render the global styles and branded header once per Streamlit run."""
+    mode_label = escape(runtime.label)
+    storage_label = escape(runtime.storage_label)
+    description = escape(runtime.description)
     st.markdown(APP_CSS, unsafe_allow_html=True)
-    st.markdown(APP_HEADER, unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="app-header">
+            <div>
+                <div class="app-kicker">Personal learning command center</div>
+                <h1 class="app-title">Study Tutor</h1>
+                <p class="app-subtitle">
+                    Turn practice into a focused plan with adaptive quizzes,
+                    spaced review, and progress you can explain.
+                </p>
+            </div>
+            <div class="status-row">
+                <span class="status-pill"><span class="status-dot"></span>{mode_label}</span>
+                <span class="status-pill">{storage_label}</span>
+                <span class="status-pill">Private by default</span>
+            </div>
+        </div>
+        <div class="runtime-banner">
+            <span class="status-dot"></span>
+            <strong>{mode_label}</strong>
+            <span>{description}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+__all__ = ["APP_CSS", "render_app_shell"]

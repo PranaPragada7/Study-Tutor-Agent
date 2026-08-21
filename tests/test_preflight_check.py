@@ -222,6 +222,7 @@ def test_shell_api_key_does_not_require_env_file(monkeypatch, tmp_path):
     monkeypatch.setattr(pf, "ENV_PATH", tmp_path / ".env")
     monkeypatch.setattr(pf, "SAMPLE_PROFILE_PATH", sample)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-" + "k" * 80)
+    monkeypatch.setenv("STUDY_TUTOR_MODE", "live")
 
     results = pf.run_all_checks(auto_regenerate=False)
     assert all(result.ok for result in results), pf.render_report(results)

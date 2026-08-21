@@ -499,8 +499,8 @@ class TestFallbackQuiz:
     def test_unknown_topic_returns_honest_stub(self, tmp_path):
         tutor = self._tutor(tmp_path)
         q = tutor._fallback_quiz("Quantum Frobnication")
-        # The honest stub explicitly tells the student the AI couldn't generate
-        assert "couldn't generate" in q["question"].lower()
+        # The local item clearly frames this as a general review cycle.
+        assert "beginning a review cycle" in q["question"].lower()
         # Topic name interpolated through safe_label
         assert "Quantum Frobnication" in q["question"]
 

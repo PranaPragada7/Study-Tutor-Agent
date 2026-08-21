@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import tempfile
 import uuid
 from datetime import datetime, timezone
@@ -24,6 +25,7 @@ from utils.profile_merge import (
 from utils.profile_merge import (
     merge_profiles as _merge_profiles,
 )
+from utils.profile_store import SQLiteProfileStore
 from utils.telemetry import (
     COUNTERS,
     PROFILE_SAVE_OK,
@@ -60,6 +62,43 @@ MAX_CHAT_HISTORY = _MAX_CHAT_HISTORY
 # Version 3: ``chat_history`` stores durable user/assistant exchanges so the
 #   chatbot continues the conversation after a profile is reloaded.
 CURRENT_SCHEMA_VERSION = 3
+
+
+def current_storage_backend() -> str:
+    """Return the configured local persistence backend."""
+
+    backend = os.getenv("STUDY_TUTOR_STORAGE", "sqlite").strip().lower()
+    return backend if backend in {"sqlite", "json"} else "sqlite"
+
+
+def _profile_key(student_name: str) -> str:
+    """Return the same safe identifier used by legacy JSON filenames."""
+
+    return os.path.splitext(os.path.basename(_profile_path(student_name)))[0]
+
+
+def _sqlite_store() -> SQLiteProfileStore:
+    return SQLiteProfileStore(DATA_DIR, timeout_seconds=_LOCK_TIMEOUT_SECONDS)
+
+
+def _prepare_payload(student_name: str, profile: dict) -> str | None:
+    """Apply persistence bounds and serialize a profile for either backend."""
+
+    profile["schema_version"] = CURRENT_SCHEMA_VERSION
+    if len(profile.get("quiz_history", [])) > MAX_QUIZ_HISTORY:
+        profile["quiz_history"] = profile["quiz_history"][-MAX_QUIZ_HISTORY:]
+    if len(profile.get("chat_history", [])) > MAX_CHAT_HISTORY:
+        profile["chat_history"] = profile["chat_history"][-MAX_CHAT_HISTORY:]
+    try:
+        return json.dumps(profile, indent=2)
+    except (TypeError, ValueError) as exc:
+        COUNTERS.incr(PROFILE_SAVE_SERIALIZE_FAIL)
+        logger.error(
+            "Failed to serialize profile for %s: %s — dropping save",
+            student_name,
+            exc,
+        )
+        return None
 
 
 def migrate_profile(profile: dict) -> dict:
@@ -214,6 +253,30 @@ def save_profile(student_name: str, profile: dict) -> bool:
     # Create the data directory BEFORE deriving lock/profile paths so the
     # lock file never lands in a directory that is racing with mkdir.
     os.makedirs(DATA_DIR, exist_ok=True)
+
+    if current_storage_backend() == "sqlite":
+        try:
+            store = _sqlite_store()
+            profile_key = _profile_key(student_name)
+            with store.write_transaction() as connection:
+                on_disk = store.read_in_transaction(connection, profile_key)
+                _merge_profiles(profile, on_disk)
+                payload = _prepare_payload(student_name, profile)
+                if payload is None:
+                    return False
+                store.upsert_in_transaction(
+                    connection,
+                    profile_key,
+                    str(profile.get("name") or student_name),
+                    payload,
+                )
+        except (sqlite3.Error, OSError, ValueError, json.JSONDecodeError) as exc:
+            COUNTERS.incr(PROFILE_SAVE_TIMEOUT)
+            logger.error("SQLite profile save failed for %s: %s", student_name, exc)
+            return False
+        COUNTERS.incr(PROFILE_SAVE_OK)
+        return True
+
     final_path = _profile_path(student_name)
     lock = FileLock(_lock_path_for(final_path), timeout=_LOCK_TIMEOUT_SECONDS)
 
@@ -234,17 +297,6 @@ def save_profile(student_name: str, profile: dict) -> bool:
             # unit-tested in tests/test_profile_merge.py.
             _merge_profiles(profile, on_disk)
 
-            # Stamp the current schema version so an older release that
-            # reads this profile back can detect that it should migrate.
-            profile["schema_version"] = CURRENT_SCHEMA_VERSION
-
-            # Trim the tail we actually write — keep total_quizzes as the
-            # true lifetime counter, not len(quiz_history).
-            if len(profile.get("quiz_history", [])) > MAX_QUIZ_HISTORY:
-                profile["quiz_history"] = profile["quiz_history"][-MAX_QUIZ_HISTORY:]
-            if len(profile.get("chat_history", [])) > MAX_CHAT_HISTORY:
-                profile["chat_history"] = profile["chat_history"][-MAX_CHAT_HISTORY:]
-
             # Serialize to string BEFORE opening the temp file so the JSON
             # encoding cost is not paid inside the fsync window. With 500
             # quiz entries this is a few KB of serialization that no longer
@@ -253,15 +305,8 @@ def save_profile(student_name: str, profile: dict) -> bool:
             # accidentally stored in resource_agent_state). Without this,
             # a TypeError from json.dumps would propagate out of
             # save_profile unguarded and crash the caller mid-quiz.
-            try:
-                payload = json.dumps(profile, indent=2)
-            except (TypeError, ValueError) as e:
-                COUNTERS.incr(PROFILE_SAVE_SERIALIZE_FAIL)
-                logger.error(
-                    "Failed to serialize profile for %s: %s — dropping save",
-                    student_name,
-                    e,
-                )
+            payload = _prepare_payload(student_name, profile)
+            if payload is None:
                 return False
 
             # Atomic write: tempfile in the same dir, fsync, os.replace.
@@ -310,6 +355,30 @@ def load_profile(student_name: str) -> dict | None:
     undetectably-stale snapshot.
     """
     path = _profile_path(student_name)
+
+    if current_storage_backend() == "sqlite":
+        try:
+            profile = _sqlite_store().read(_profile_key(student_name))
+        except (sqlite3.Error, OSError, ValueError, json.JSONDecodeError) as exc:
+            logger.error("SQLite profile load failed for %s: %s", student_name, exc)
+            return None
+        if profile is not None:
+            return migrate_profile(profile)
+
+        # One-time, backwards-compatible import from the previous JSON
+        # release. This also makes the committed Sample Student immediately
+        # available on a clean clone without a separate migration command.
+        if os.path.exists(path):
+            try:
+                with FileLock(_lock_path_for(path), timeout=_LOCK_TIMEOUT_SECONDS):
+                    with open(path, "r") as file:
+                        legacy_profile = migrate_profile(json.load(file))
+                if save_profile(student_name, legacy_profile):
+                    return legacy_profile
+            except (Timeout, OSError, ValueError, TypeError, json.JSONDecodeError):
+                return None
+        return None
+
     if not os.path.exists(path):
         return None
     try:
@@ -337,6 +406,27 @@ def list_saved_profiles() -> list[dict]:
     the user to remember the exact name they typed when creating the profile.
     Corrupt or partially-written files are skipped.
     """
+    if current_storage_backend() == "sqlite":
+        # Import legacy JSON documents once so upgrades retain all local
+        # profiles. Invalid documents are ignored and remain untouched.
+        if os.path.isdir(DATA_DIR):
+            for filename in os.listdir(DATA_DIR):
+                if not filename.endswith(".json"):
+                    continue
+                path = os.path.join(DATA_DIR, filename)
+                try:
+                    with open(path, "r") as file:
+                        legacy_profile = migrate_profile(json.load(file))
+                    name = str(legacy_profile.get("name", "")).strip()
+                    if name and _sqlite_store().read(_profile_key(name)) is None:
+                        save_profile(name, legacy_profile)
+                except (OSError, ValueError, TypeError, json.JSONDecodeError, sqlite3.Error):
+                    continue
+        try:
+            return _sqlite_store().list_profiles()
+        except (sqlite3.Error, OSError):
+            return []
+
     if not os.path.isdir(DATA_DIR):
         return []
 
@@ -515,6 +605,24 @@ def delete_profile(student_name: str) -> bool:
         path = _profile_path(student_name)
     except ValueError:
         return False
+
+    if current_storage_backend() == "sqlite":
+        try:
+            _sqlite_store().delete(_profile_key(student_name))
+        except (sqlite3.Error, OSError, ValueError) as exc:
+            logger.error("Could not delete SQLite profile for %s: %s", student_name, exc)
+            return False
+        # Remove any imported legacy copy as well; otherwise a later load
+        # could restore data that the user explicitly deleted.
+        legacy_ok = True
+        for legacy_path in (path, _lock_path_for(path)):
+            if os.path.exists(legacy_path):
+                try:
+                    os.remove(legacy_path)
+                except OSError:
+                    legacy_ok = False
+        return legacy_ok
+
     lock_path = _lock_path_for(path)
     ok = True
     for p in (path, lock_path):

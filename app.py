@@ -13,6 +13,7 @@ Features:
 
 import os
 import sys
+from html import escape
 
 import streamlit as st
 
@@ -21,6 +22,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from agents.resource_agent import ResourceAgent
 from agents.tutor_agent import TutorAgent
+from services.runtime import get_runtime_config
 from ui.components import (
     render_quiz_session_snapshot as _render_quiz_session_snapshot,
 )
@@ -69,8 +71,8 @@ st.set_page_config(
     layout="wide",
 )
 
-
-render_app_shell()
+runtime = get_runtime_config()
+render_app_shell(runtime)
 
 
 # ──────────────────────────────────────────────
@@ -105,36 +107,24 @@ def _build_anthropic_client(api_key: str) -> "Anthropic":
     return Anthropic(api_key=api_key)
 
 
-def get_anthropic_client() -> "Anthropic":
+def get_anthropic_client() -> "Anthropic | None":
     """One shared Anthropic client per Streamlit server process.
 
-    The API key is read explicitly from the environment. Study Tutor is a
-    live chatbot, so missing runtime configuration stops the app with a clear
-    setup message instead of silently changing to a different experience.
+    Local demo mode deliberately returns ``None``. The agents already expose
+    deterministic fallback content, so every learning workflow stays usable
+    without a paid API call. Live mode constructs one shared Claude client.
     """
+    if not runtime.llm_enabled:
+        return None
     if not _HAS_ANTHROPIC:
-        raise RuntimeError(
-            "The Anthropic package is not installed. Run "
-            "`python -m pip install -r requirements.txt`."
-        )
+        return None
     api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is required. Add it to a local `.env` file "
-            "or set it in the terminal before starting Study Tutor."
-        )
+        return None
     try:
         return _build_anthropic_client(api_key)
-    except Exception as exc:  # noqa: BLE001
-        raise RuntimeError(f"Claude client could not be initialized: {exc}") from exc
-
-
-try:
-    get_anthropic_client()
-except RuntimeError as exc:
-    st.error("Claude connection required")
-    st.info(str(exc))
-    st.stop()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 # ──────────────────────────────────────────────
@@ -278,7 +268,9 @@ def render_quiz_session_snapshot(
 # ──────────────────────────────────────────────
 with st.sidebar:
     st.header("Student Profile")
-    st.caption("Profiles are stored locally on this computer for this demonstration.")
+    st.caption(f"Private local profiles · {runtime.storage_label} persistence")
+    st.markdown(f"**AI runtime:** {runtime.label}")
+    st.caption(runtime.description)
 
     st.markdown("#### Sample Profile")
     sample_cols = st.columns(2)
@@ -518,7 +510,30 @@ with st.sidebar:
 # Main Content (only if profile is loaded)
 # ──────────────────────────────────────────────
 if st.session_state.profile is None or st.session_state.tutor is None:
-    st.info("Enter your name and set up your courses in the sidebar to get started.")
+    st.markdown(
+        """
+        <div class="section-intro">
+            <div>
+                <div class="section-eyebrow">Get started</div>
+                <h2>Your learning workspace is ready</h2>
+            </div>
+            <p>Create a private profile in the sidebar, or open the prepared sample to
+            explore adaptive practice, progress analytics, and spaced review immediately.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    action_cols = st.columns([1, 1, 2])
+    with action_cols[0]:
+        if st.button("Open Sample Workspace", type="primary", use_container_width=True):
+            sample_profile = load_profile("Sample Student")
+            if sample_profile:
+                load_profile_into_session(sample_profile)
+                COUNTERS.reset()
+                st.rerun()
+            st.warning("Sample profile could not be loaded.")
+    with action_cols[1]:
+        st.caption("No account, API key, or public deployment required.")
     onboarding_columns = st.columns(3)
     onboarding_steps = (
         (
@@ -556,18 +571,71 @@ profile_summary = cached_performance(st.session_state.profile)
 active_due_reviews = tutor.get_due_reviews()
 active_comm_stats = tutor.get_comm_stats()
 
-overview_cols = st.columns(4)
 profile_name = str(st.session_state.profile.get("name") or "Unknown")
+st.markdown(
+    f"""
+    <div class="section-intro">
+        <div>
+            <div class="section-eyebrow">Learning overview</div>
+            <h2>Welcome back, {escape(profile_name.split(maxsplit=1)[0])}</h2>
+        </div>
+        <p>Your current practice signals, review queue, and tutor activity are summarized
+        here before you choose the next learning action.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+overview_cols = st.columns(4)
 overview_cols[0].metric("Learner", profile_name.split(maxsplit=1)[0])
 overview_cols[1].metric("Courses", len(st.session_state.profile.get("courses", {})))
 overview_cols[2].metric("Questions", profile_summary.get("total_quizzes", 0))
 overview_cols[3].metric("Agent Messages", active_comm_stats.get("total_messages", 0))
 
-if active_due_reviews:
-    st.info(
-        f"{len(active_due_reviews)} topic(s) due for review. "
-        f"Next: {', '.join([d['topic'] for d in active_due_reviews[:3]])}"
-    )
+weak_topics = [
+    topic
+    for course in profile_summary.get("courses", {}).values()
+    for topic in course.get("weak_topics", [])
+]
+next_focus = (
+    str(active_due_reviews[0].get("topic", "Review queue"))
+    if active_due_reviews
+    else str(weak_topics[0].get("topic", "Start a focused quiz"))
+    if weak_topics
+    else "Start a focused quiz"
+)
+insight_cols = st.columns(3)
+insight_cards = (
+    (
+        "Recommended next",
+        escape(next_focus),
+        "Chosen from due reviews and current mastery signals.",
+    ),
+    (
+        "Review queue",
+        f"{len(active_due_reviews)} topic(s)",
+        "Spaced-repetition items currently ready for another attempt.",
+    ),
+    (
+        "Tutor runtime",
+        escape(runtime.label),
+        "Local fallbacks keep the complete workflow usable without paid services.",
+    ),
+)
+for column, (label, value, detail) in zip(insight_cols, insight_cards):
+    with column:
+        st.markdown(
+            f"""
+            <div class="insight-card">
+                <div class="insight-label">{label}</div>
+                <h3>{value}</h3>
+                <p>{detail}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+st.write("")
 
 # Tabs for different features
 tab_chat, tab_quiz, tab_plan, tab_progress, tab_diag = st.tabs(

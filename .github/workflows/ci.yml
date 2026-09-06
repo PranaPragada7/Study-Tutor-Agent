@@ -38,7 +38,35 @@ jobs:
 
       - name: Run test suite with coverage
         if: matrix.python-version == '3.11'
-        run: python -m pytest --cov --cov-report=term-missing
+        run: >-
+          python -m pytest --cov --cov-report=term-missing
+          --cov-report=json:coverage.json --cov-report=xml:coverage.xml
+
+      - name: Summarize measured coverage
+        if: always() && matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = Path("coverage.json")
+          if report.exists():
+              totals = json.loads(report.read_text())["totals"]
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                  summary.write("## Application coverage\n\n")
+                  summary.write(f"Measured coverage: **{totals['percent_covered']:.2f}%**\n\n")
+                  summary.write("Includes app, API, configuration, services, agents, UI, and utilities.\n")
+          PY
+
+      - name: Upload coverage reports
+        if: always() && matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: application-coverage-python-3.11
+          path: |
+            coverage.json
+            coverage.xml
+          if-no-files-found: warn
 
       - name: Run compatibility tests
         if: matrix.python-version != '3.11'

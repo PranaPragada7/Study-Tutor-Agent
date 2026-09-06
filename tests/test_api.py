@@ -59,3 +59,18 @@ def test_profile_validation_rejects_invalid_difficulty(monkeypatch, tmp_path):
     )
 
     assert response.status_code == 422
+
+
+def test_profile_listing_missing_resources_and_failed_delete(monkeypatch, tmp_path):
+    client = _client(monkeypatch, tmp_path)
+    assert client.get("/api/v1/profiles").json() == []
+    assert client.get("/api/v1/profiles/missing/summary").status_code == 404
+    assert client.delete("/api/v1/profiles/missing").status_code == 404
+    created = client.post(
+        "/api/v1/profiles", json={"name": "Student", "courses": [{"name": "Math"}]}
+    )
+    assert created.status_code == 201
+    assert client.get("/api/v1/profiles").json()[0]["name"] == "Student"
+    monkeypatch.setattr("api.delete_profile", lambda name: False)
+    assert client.delete("/api/v1/profiles/Student").status_code == 503
+    assert client.get("/api/v1/profiles/Student").status_code == 200

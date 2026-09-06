@@ -2,6 +2,12 @@
 
 ## Unreleased — Local platform and UI upgrade
 
+- Extended coverage measurement to the app, API, configuration, and services;
+  CI now publishes actual measurement summaries and coverage artifacts.
+- Added offline UI tests for complete quiz sessions, feedback, report persistence,
+  study plans, and chat reload/clearing; the suite now contains 246 tests.
+- Fixed the local study-plan scheduler call and avoided failed LLM attempts when
+  suggesting topics without a client.
 - Redesigned the Streamlit experience as a responsive learning dashboard with
   clear onboarding, recommendations, runtime visibility, and privacy status.
 - Added a complete no-key local demo runtime with deterministic tutor fallbacks.

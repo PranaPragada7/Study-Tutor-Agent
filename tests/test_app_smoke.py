@@ -10,9 +10,8 @@ regressions that today only surface when a human runs the app:
   - the create-profile flow wires through to a usable session state
     (profile populated, tutor instantiated, no exceptions)
 
-We do NOT exercise quiz / chat / study-plan flows here because those
-make live LLM calls. Those paths are covered by the unit + integration
-tests in tests/test_tutor.py and tests/test_multi_agent.py.
+Full offline quiz, chat, study-plan, and persistence workflows are exercised
+through AppTest in tests/test_app_workflows.py without live LLM calls.
 
 Run with: pytest tests/test_app_smoke.py -v
 """

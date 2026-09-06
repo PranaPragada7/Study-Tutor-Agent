@@ -44,3 +44,12 @@ def test_requested_live_mode_degrades_safely(monkeypatch):
 
     assert runtime.mode == "demo"
     assert "safely switched" in runtime.description
+
+
+def test_invalid_runtime_settings_fall_back_to_supported_defaults(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("STUDY_TUTOR_MODE", "unsupported")
+    monkeypatch.setenv("STUDY_TUTOR_STORAGE", "unsupported")
+    runtime = get_runtime_config()
+    assert runtime.mode == "demo"
+    assert runtime.storage_backend == "sqlite"

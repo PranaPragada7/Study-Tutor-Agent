@@ -5,7 +5,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-local%20API-05998b?logo=fastapi&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-transactional-315a7d?logo=sqlite&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-local%20stack-2496ed?logo=docker&logoColor=white)
-![Coverage](https://img.shields.io/badge/coverage-74%25-2f855a)
+[![Coverage gate](https://img.shields.io/badge/coverage_gate-70%25-2f855a)](https://github.com/PranaPragada7/Study-Tutor-Agent/actions/workflows/ci.yml)
 
 Study Tutor is a local-first adaptive learning platform. It combines a polished
 Streamlit workspace, a versioned FastAPI service, transactional SQLite student
@@ -138,7 +138,12 @@ python -m pytest --cov --cov-report=term-missing
 docker compose config --quiet
 ```
 
-The suite currently contains 241 tests and enforces a 70% branch-coverage floor.
+The suite currently contains 246 tests and enforces a 70% coverage floor with branch
+measurement enabled. Coverage includes `app.py`, `api.py`, `config.py`, `services/`,
+`agents/`, `ui/`, and `utils/`. Full offline UI tests complete five-question sessions,
+save feedback and reports, generate study plans, and verify durable chat and clearing.
+The badge labels the enforced gate, not a hard-coded measurement. Each Python 3.11
+CI run publishes the measured coverage summary and downloadable reports.
 GitHub Actions tests Python 3.10–3.13, validates formatting/linting, builds the
 container image, and checks the Compose configuration. Tests never make live
 Anthropic requests.

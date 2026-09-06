@@ -4,7 +4,7 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["agents", "ui", "utils"]
+source = ["agents", "ui", "utils", "services", "app", "api", "config"]
 
 [tool.coverage.report]
 fail_under = 70

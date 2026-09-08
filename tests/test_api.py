@@ -87,9 +87,13 @@ def test_failed_create_does_not_report_success(monkeypatch, tmp_path):
         raise sqlite3.OperationalError("simulated disk full")
 
     monkeypatch.setattr(SQLiteProfileStore, "upsert_in_transaction", fail)
-    response = client.post("/api/v1/profiles", json={
-        "name": "Unsaved", "courses": [{"name": "Math"}],
-    })
+    response = client.post(
+        "/api/v1/profiles",
+        json={
+            "name": "Unsaved",
+            "courses": [{"name": "Math"}],
+        },
+    )
     assert response.status_code == 503
     assert client.get("/api/v1/profiles/Unsaved").status_code == 404
 
@@ -97,9 +101,13 @@ def test_failed_create_does_not_report_success(monkeypatch, tmp_path):
 def test_unsupported_names_are_client_errors(monkeypatch, tmp_path):
     client = _client(monkeypatch, tmp_path)
     for name in ("李", "!!!", "___"):
-        response = client.post("/api/v1/profiles", json={
-            "name": name, "courses": [{"name": "Math"}],
-        })
+        response = client.post(
+            "/api/v1/profiles",
+            json={
+                "name": name,
+                "courses": [{"name": "Math"}],
+            },
+        )
         assert response.status_code == 422
         assert client.get(f"/api/v1/profiles/{name}").status_code == 422
         assert client.get(f"/api/v1/profiles/{name}/summary").status_code == 422

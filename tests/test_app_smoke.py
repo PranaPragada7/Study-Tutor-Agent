@@ -224,7 +224,9 @@ def test_sample_profile_button_loads_existing_sample(temp_data_dir, fake_api_key
 
 
 @pytest.mark.parametrize("name, fail_save", [("Unsaved", True), ("李", False)])
-def test_profile_creation_errors_keep_onboarding_usable(temp_data_dir, monkeypatch, name, fail_save):
+def test_profile_creation_errors_keep_onboarding_usable(
+    temp_data_dir, monkeypatch, name, fail_save
+):
     if fail_save:
         monkeypatch.setattr("utils.student_profile.save_profile", lambda *args: False)
     at = AppTest.from_file(APP_PATH).run(timeout=15)

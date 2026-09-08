@@ -334,14 +334,20 @@ with st.sidebar:
     # Try to load existing profile
     student_name = st.text_input("Your Name", placeholder="e.g. Alex")
 
+    valid_student_name = True
     if student_name:
-        existing = load_profile(student_name)
+        try:
+            existing = load_profile(student_name)
+        except ValueError as exc:
+            existing = None
+            valid_student_name = False
+            st.error(str(exc))
         if existing:
             st.success(f"Welcome back, {student_name}!")
             if st.button("Load Profile", type="primary"):
                 load_profile_into_session(existing)
                 st.rerun()
-        else:
+        elif valid_student_name:
             st.info("New student! Set up your courses below.")
 
     st.divider()
@@ -398,7 +404,9 @@ with st.sidebar:
                 )
 
         if st.button(
-            "Create Profile", disabled=not student_name or num_courses == 0, type="primary"
+            "Create Profile",
+            disabled=not student_name or not valid_student_name or num_courses == 0,
+            type="primary",
         ):
             courses = [
                 {
@@ -409,11 +417,15 @@ with st.sidebar:
                 for name in course_lines
             ]
 
-            profile = create_profile(student_name, courses, learning_style=learning_style)
-            load_profile_into_session(profile)
-            st.session_state.chat_messages = []
-            st.success("Profile created!")
-            st.rerun()
+            try:
+                profile = create_profile(student_name, courses, learning_style=learning_style)
+            except (OSError, ValueError) as exc:
+                st.error(str(exc))
+            else:
+                load_profile_into_session(profile)
+                st.session_state.chat_messages = []
+                st.success("Profile created!")
+                st.rerun()
 
     # Show current profile info
     if st.session_state.profile:

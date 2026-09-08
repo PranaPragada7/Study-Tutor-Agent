@@ -1397,7 +1397,7 @@ for remembering this concept."""
     def _fallback_study_plan(self: "TutorAgent") -> str:
         summary = get_performance_summary(self.profile)
         due_topics = self.scheduler.get_due_topics()
-        upcoming = self.scheduler.get_upcoming_reviews(days=7)
+        upcoming = self.scheduler.get_upcoming_reviews(days_ahead=7)
 
         weak: list[str] = []
         for course_name, data in summary.get("courses", {}).items():
@@ -1498,6 +1498,8 @@ Format it clearly with days and bullet points."""
     @retry_llm_call()
     def _suggest_topics(self, course: str) -> list[str]:
         """Use LLM to suggest common topics for a course."""
+        if not self.client:
+            return self._fallback_topics(self, course)
         safe_course = safe_label(course, limit=80)
         prompt = f"""List 5 common study topics for a course called "{safe_course}".
 Respond ONLY with a JSON array of strings, nothing else.

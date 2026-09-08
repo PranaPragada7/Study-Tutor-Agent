@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Path, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from services.runtime import get_runtime_config
@@ -28,7 +28,7 @@ class CourseCreate(BaseModel):
 class ProfileCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    name: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=100, pattern=r"[a-zA-Z0-9]")
     learning_style: str = Field(default="balanced", pattern="^(balanced|concise|detailed|visual)$")
     courses: list[CourseCreate] = Field(min_length=1, max_length=12)
 
@@ -63,15 +63,18 @@ def profiles() -> list[dict]:
 def create(payload: ProfileCreate) -> dict:
     if load_profile(payload.name) is not None:
         raise HTTPException(status_code=409, detail="A profile with this name already exists.")
-    return create_profile(
-        payload.name,
-        [course.model_dump() for course in payload.courses],
-        learning_style=payload.learning_style,
-    )
+    try:
+        return create_profile(
+            payload.name,
+            [course.model_dump() for course in payload.courses],
+            learning_style=payload.learning_style,
+        )
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="Profile could not be saved.") from exc
 
 
 @app.get("/api/v1/profiles/{student_name}")
-def profile(student_name: str) -> dict:
+def profile(student_name: Annotated[str, Path(pattern=r"[a-zA-Z0-9]")]) -> dict:
     loaded = load_profile(student_name)
     if loaded is None:
         raise HTTPException(status_code=404, detail="Profile not found.")
@@ -79,7 +82,7 @@ def profile(student_name: str) -> dict:
 
 
 @app.get("/api/v1/profiles/{student_name}/summary")
-def summary(student_name: str) -> dict:
+def summary(student_name: Annotated[str, Path(pattern=r"[a-zA-Z0-9]")]) -> dict:
     loaded = load_profile(student_name)
     if loaded is None:
         raise HTTPException(status_code=404, detail="Profile not found.")
@@ -87,7 +90,7 @@ def summary(student_name: str) -> dict:
 
 
 @app.delete("/api/v1/profiles/{student_name}", status_code=status.HTTP_204_NO_CONTENT)
-def remove(student_name: str) -> None:
+def remove(student_name: Annotated[str, Path(pattern=r"[a-zA-Z0-9]")]) -> None:
     if load_profile(student_name) is None:
         raise HTTPException(status_code=404, detail="Profile not found.")
     if not delete_profile(student_name):

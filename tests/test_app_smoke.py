@@ -10,9 +10,8 @@ regressions that today only surface when a human runs the app:
   - the create-profile flow wires through to a usable session state
     (profile populated, tutor instantiated, no exceptions)
 
-We do NOT exercise quiz / chat / study-plan flows here because those
-make live LLM calls. Those paths are covered by the unit + integration
-tests in tests/test_tutor.py and tests/test_multi_agent.py.
+Full offline quiz, chat, study-plan, and persistence workflows are exercised
+through AppTest in tests/test_app_workflows.py without live LLM calls.
 
 Run with: pytest tests/test_app_smoke.py -v
 """
@@ -222,3 +221,23 @@ def test_sample_profile_button_loads_existing_sample(temp_data_dir, fake_api_key
 
     assert "tutor" in at.session_state
     assert at.session_state["tutor"] is not None
+
+
+@pytest.mark.parametrize("name, fail_save", [("Unsaved", True), ("李", False)])
+def test_profile_creation_errors_keep_onboarding_usable(
+    temp_data_dir, monkeypatch, name, fail_save
+):
+    if fail_save:
+        monkeypatch.setattr("utils.student_profile.save_profile", lambda *args: False)
+    at = AppTest.from_file(APP_PATH).run(timeout=15)
+    next(t for t in at.sidebar.text_input if "Name" in t.label).set_value(name)
+    at.sidebar.text_area[0].set_value("CS101").run(timeout=15)
+    button = next(b for b in at.sidebar.button if b.label == "Create Profile")
+    if fail_save:
+        button.click().run(timeout=15)
+    else:
+        assert button.disabled
+    assert not at.exception
+    assert at.error
+    assert at.session_state["profile"] is None
+    assert not at.success

@@ -155,7 +155,7 @@ def _profile_path(student_name: str) -> str:
     """Get the file path for a student's profile."""
     # Sanitize: keep only alphanumeric, spaces, hyphens, underscores
     safe_name = re.sub(r"[^a-zA-Z0-9 _-]", "", student_name).strip()
-    if not safe_name:
+    if not re.search(r"[a-zA-Z0-9]", safe_name):
         raise ValueError("Student name must contain at least one alphanumeric character")
     safe_name = safe_name.lower().replace(" ", "_")
     path = os.path.join(DATA_DIR, f"{safe_name}.json")
@@ -218,7 +218,9 @@ def create_profile(
             "total_attempted": 0,
         }
 
-    save_profile(student_name, profile)
+    _profile_path(student_name)
+    if not save_profile(student_name, profile):
+        raise OSError("Profile could not be saved. Please try again.")
     return profile
 
 

@@ -138,7 +138,7 @@ python -m pytest --cov --cov-report=term-missing
 docker compose config --quiet
 ```
 
-The suite currently contains 246 tests and enforces a 70% coverage floor with branch
+The suite enforces a 70% coverage floor with branch
 measurement enabled. Coverage includes `app.py`, `api.py`, `config.py`, `services/`,
 `agents/`, `ui/`, and `utils/`. Full offline UI tests complete five-question sessions,
 save feedback and reports, generate study plans, and verify durable chat and clearing.

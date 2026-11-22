@@ -47,7 +47,7 @@ def get_runtime_config() -> RuntimeConfig:
 
     requested_mode = os.getenv("STUDY_TUTOR_MODE", "demo").strip().lower()
     if requested_mode not in {"auto", "demo", "live"}:
-        requested_mode = "auto"
+        requested_mode = "demo"
 
     storage = os.getenv("STUDY_TUTOR_STORAGE", "sqlite").strip().lower()
     if storage not in {"sqlite", "json"}:

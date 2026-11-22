@@ -10,6 +10,9 @@ __pycache__
 htmlcov
 eval-output
 .env
-data/*.db
-data/*.db-*
-data/*.lock
+.env.*
+!.env.example
+.streamlit/secrets.toml
+data/*
+!data/.gitkeep
+!data/sample_student.json

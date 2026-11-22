@@ -42,6 +42,7 @@ wrapper around the merge, which is also easier to read.
 from __future__ import annotations
 
 import logging
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +260,44 @@ def merge_chat_history(in_memory: dict, on_disk: dict, *, limit: int = 100) -> N
 # ---------------------------------------------------------------------------
 
 
+def _apply_learning_reset(profile: dict, reset_at: str) -> dict:
+    """Remove learning state from before a reset observed in another tab.
+
+    A stale tab may have answered new questions after the reset, so retain and
+    replay those entries instead of reviving all of its old aggregate counters.
+    """
+    if str(profile.get("learning_state_reset_at", "")) >= reset_at:
+        return profile
+    profile["learning_state_reset_at"] = reset_at
+    history = [
+        entry
+        for entry in profile.get("quiz_history", [])
+        if str(entry.get("timestamp", "")) > reset_at
+    ]
+    for course in profile.get("courses", {}).values():
+        course["total_attempted"] = 0
+        course["total_correct"] = 0
+        for topic in course.get("topics", {}).values():
+            topic["attempted"] = 0
+            topic["correct"] = 0
+    profile["quiz_history"] = history
+    for entry in history:
+        apply_entry_to_aggregates(profile, entry)
+    profile["total_quizzes"] = sum(
+        int(course.get("total_attempted", 0)) for course in profile.get("courses", {}).values()
+    )
+    profile["quiz_sessions"] = [
+        session
+        for session in profile.get("quiz_sessions", [])
+        if str(session.get("created_at", "")) > reset_at
+    ]
+    profile["session_count"] = len(profile["quiz_sessions"])
+    profile["spaced_repetition"] = {}
+    profile["streak_tracker"] = []
+    profile["resource_agent_state"] = {}
+    return profile
+
+
 def merge_profiles(in_memory: dict, on_disk: dict | None) -> dict:
     """
     Merge an in-memory profile with the on-disk version, mutating
@@ -296,6 +335,14 @@ def merge_profiles(in_memory: dict, on_disk: dict | None) -> dict:
     """
     if not on_disk:
         return in_memory
+
+    reset_at = max(
+        str(in_memory.get("learning_state_reset_at", "")),
+        str(on_disk.get("learning_state_reset_at", "")),
+    )
+    if reset_at:
+        _apply_learning_reset(in_memory, reset_at)
+        on_disk = _apply_learning_reset(deepcopy(on_disk), reset_at)
 
     if "quiz_history" in on_disk:
         memory_history = in_memory.setdefault("quiz_history", [])

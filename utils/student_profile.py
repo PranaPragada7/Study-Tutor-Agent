@@ -649,7 +649,7 @@ def export_profile_json(profile: dict) -> str:
     return json.dumps(profile, indent=2, sort_keys=True)
 
 
-def reset_quiz_history(profile: dict) -> dict:
+def reset_quiz_history(profile: dict, *, now_fn: Callable[[], datetime] | None = None) -> dict:
     """Wipe the student's quiz history + per-course/topic counters.
 
     Preserves: name, created_at, learning_style, course list (with
@@ -661,6 +661,9 @@ def reset_quiz_history(profile: dict) -> dict:
     Mutates and returns ``profile``. Caller is responsible for calling
     ``save_profile`` afterwards.
     """
+    profile["learning_state_reset_at"] = (
+        now_fn or (lambda: datetime.now(timezone.utc))
+    )().isoformat()
     profile["quiz_history"] = []
     profile["quiz_sessions"] = []
     profile["total_quizzes"] = 0

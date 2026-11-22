@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from typing import Iterator
 
@@ -60,7 +60,7 @@ class SQLiteProfileStore:
             connection.close()
 
     def read(self, profile_key: str) -> dict | None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT payload FROM profiles WHERE profile_key = ?",
                 (profile_key,),
@@ -102,7 +102,7 @@ class SQLiteProfileStore:
     def list_profiles(self) -> list[dict]:
         if not os.path.exists(self.path):
             return []
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(
                 "SELECT display_name, payload, updated_at FROM profiles "
                 "ORDER BY lower(display_name), updated_at DESC"
@@ -127,7 +127,7 @@ class SQLiteProfileStore:
     def delete(self, profile_key: str) -> bool:
         if not os.path.exists(self.path):
             return True
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute("DELETE FROM profiles WHERE profile_key = ?", (profile_key,))
         return True
 
